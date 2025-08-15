@@ -1,3 +1,4 @@
+import { apiUrl } from '@/lib/api';
 import { useState } from 'react';
 
 interface Comp {
@@ -35,11 +36,11 @@ const Comps = () => {
       if (yearBuilt) params.append('year_built', yearBuilt);
       if (lotSize) params.append('lot_size', lotSize);
       params.append('n', n.toString());
-      const res = await fetch(`https://casae-api.onrender.com/comps/search?${params.toString()}`, {
-        method: 'GET'
-      });
-      const data = await res.json();
+          const res = await fetch(`https://casae-api.onrender.com/comps/suggest?${params.toString()}`, { method: 'GET' });
+const data = await res.json();
       setComps(data.results || []);
+   
+
     } catch (error) {
       console.error(error);
     } finally {
