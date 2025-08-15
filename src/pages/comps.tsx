@@ -1,4 +1,4 @@
-import { apiUrl } from '@/lib/api';
+
 import { useState } from 'react';
 
 interface Comp {
