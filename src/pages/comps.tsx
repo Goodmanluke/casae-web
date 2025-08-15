@@ -36,7 +36,7 @@ const Comps = () => {
       if (lotSize) params.append('lot_size', lotSize);
       params.append('n', n.toString());
       const res = await fetch(`https://casae-api.onrender.com/comps/search?${params.toString()}`, {
-        method: 'POST'
+        method: 'GET'
       });
       const data = await res.json();
       setComps(data.results || []);
