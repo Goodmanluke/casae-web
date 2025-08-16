@@ -13,7 +13,7 @@ export default function Login() {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        router.replace('/comps');
+        router.replace('/cma'); // or '/' if you want to show the address input
       }
     };
     checkSession();
