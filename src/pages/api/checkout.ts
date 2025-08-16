@@ -5,7 +5,7 @@ import Stripe from 'stripe';
 // The API version should be set according to your Stripe account configuration.
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   // Use the latest API version available at the time of writing.  Adjust as needed.
-  apiVersion: '2024-08-16',
+  apiVersion: '2022-11-15',
 });
 
 export default async function handler(
