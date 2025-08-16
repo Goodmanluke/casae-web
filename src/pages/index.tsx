@@ -1,52 +1,52 @@
-import { useState } from 'react';
+import { useRouter } from "next/router";
+import { useState } from "react";
 
-const Home = () => {
-  const [address, setAddress] = useState('');
-  const [response, setResponse] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+export default function Home() {
+  const router = useRouter();
+  const [q, setQ] = useState("");
 
-  const handleSubmit = async (e: any) => {
+  async function geocodeAddress(addr: string) {
+    // Minimal client-side Mapbox Geocoding
+    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
+      addr
+    )}.json?access_token=${token}&limit=1`;
+    const r = await fetch(url);
+    const j = await r.json();
+    const f = j.features?.[0];
+    if (!f) return null;
+    const [lng, lat] = f.center;
+    return { lat, lng, place_name: f.place_name };
+  }
+
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch('https://casae-api.onrender.com/health');
-      const data = await res.json();
-      setResponse(data);
-    } catch (error) {
-      setResponse({ error: 'Error connecting to API' });
-    } finally {
-      setLoading(false);
-    }
+    if (!q.trim()) return;
+    const geo = await geocodeAddress(q.trim());
+    if (!geo) return alert("Couldn’t find that address.");
+    router.push(
+      `/cma?address=${encodeURIComponent(geo.place_name)}&lat=${geo.lat}&lng=${geo.lng}`
+    );
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center py-8 px-4 bg-gray-50">
-      <h1 className="text-4xl font-bold mb-4">Casae API Demo</h1>
-      <p className="text-lg text-gray-700 mb-4 text-center max-w-xl">
-        Enter your address (for now, it won’t be sent anywhere). When you submit, we’ll call the backend API and display the response here.
-      </p>
-      <form onSubmit={handleSubmit} className="w-full max-w-md">
-        <input
-          type="text"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Enter your address"
-          className="w-full p-2 border border-gray-300 rounded mb-4"
-        />
-        <button
-          type="submit"
-          className="w-full p-2 bg-blue-500 text-white rounded"
-          disabled={loading}
-        >
-          {loading ? 'Loading...' : 'Submit'}
-        </button>
-      </form>
-      {response && (
-        <pre className="mt-4 p-2 bg-gray-100 border border-gray-200 rounded w-full max-w-md text-left">
-          {JSON.stringify(response, null, 2)}
-        </pre>
-      )}
+    <div className="min-h-screen grid place-items-center p-6">
+      <div className="w-full max-w-2xl space-y-4">
+        <h1 className="text-3xl font-semibold">Start a CMA</h1>
+        <form onSubmit={onSubmit} className="flex gap-2">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Enter subject property address"
+            className="flex-1 border rounded-xl px-4 py-3"
+          />
+          <button className="rounded-xl px-5 py-3 border">Go</button>
+        </form>
+      </div>
     </div>
+  );
+}
+
   );
 };
 
