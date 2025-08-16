@@ -58,16 +58,23 @@ const Comps = () => {
       if (yearBuilt) params.append('year_built', yearBuilt);
       if (lotSize) params.append('lot_size', lotSize);
       params.append('n', n.toString());
-      // Call the API; using the public render URL here. In a production environment
-      // consider using NEXT_PUBLIC_API_BASE to construct the URL.
-      const res = await fetch(`https://casae-api.onrender.com/comps/search?${params.toString()}`, {
+      // Determine the API base URL from env or fallback.  In production, NEXT_PUBLIC_API_BASE
+      // will be injected by Next.js during the build.  Fallback to the custom domain.
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.casae.app';
+      const res = await fetch(`${API_BASE}/comps/search?${params.toString()}`, {
         method: 'GET',
       });
       if (!res.ok) {
         throw new Error(`API request failed with status ${res.status}`);
       }
       const data = await res.json();
-      setComps(Array.isArray(data?.results) ? data.results : []);
+      // Handle different response shapes: either an array or an object with a `results` array
+      const compsData = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.results)
+        ? data.results
+        : [];
+      setComps(compsData);
     } catch (error) {
       console.error(error);
     } finally {
