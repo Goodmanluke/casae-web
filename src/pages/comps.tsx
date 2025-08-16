@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import supabase from '../lib/supabaseClient';
 import dynamic from 'next/dynamic';
 
 // Dynamically import Mapbox components to avoid server-side rendering issues in Next.js.
@@ -82,6 +83,47 @@ const Comps = () => {
     }
   };
 
+  // Save the current search parameters for the logged-in user
+  const handleSaveSearch = async () => {
+    try {
+      if (!supabase) {
+        alert('Supabase is not configured.');
+        return;
+      }
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+      if (error || !user) {
+        alert('Please log in to save searches.');
+        return;
+      }
+      const paramsObj = {
+        price,
+        beds,
+        baths,
+        sqft,
+        year_built: yearBuilt,
+        lot_size: lotSize,
+        n,
+      };
+      const res = await fetch('/api/save-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id, params: paramsObj }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert('Search saved successfully!');
+      } else {
+        alert(data?.error || 'Failed to save search');
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to save search');
+    }
+  };
+
   // Toggle selection of comps for potential later use (e.g. saving comps)
   const handleToggle = (id: string) => {
     setSelectedIds(prev => (prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]));
@@ -150,6 +192,14 @@ const Comps = () => {
         />
         <button type="submit" className="col-span-full bg-blue-600 text-white py-2 px-4 rounded">
           Search
+        </button>
+        {/* Button to save the current search criteria */}
+        <button
+          type="button"
+          onClick={handleSaveSearch}
+          className="col-span-full bg-green-600 text-white py-2 px-4 rounded mt-2"
+        >
+          Save Search
         </button>
       </form>
       {loading ? (
