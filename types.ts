@@ -1,0 +1,47 @@
+export type Subject = {
+  address: string;
+  lat: number;
+  lng: number;
+  beds: number;
+  baths: number;
+  sqft: number;
+  year_built?: number;
+  lot_sqft?: number;
+  condition?: string;
+  waterfront?: boolean;
+};
+
+export type CMAInput = {
+  subject: Subject;
+  rules?: Record<string, any>;
+};
+
+export type AdjustmentInput = {
+  cma_run_id: string;
+  condition?: string;
+  renovations?: string[];
+  add_beds?: number;
+  add_baths?: number;
+  add_sqft?: number;
+  dock_length?: number;
+};
+
+export type Comp = {
+  id: string;
+  address: string;
+  raw_price: number;
+  living_sqft: number;
+  beds: number;
+  baths: number;
+  year_built?: number;
+  lot_sqft?: number;
+  distance_mi?: number;
+  similarity: number;
+};
+
+export type CMAResponse = {
+  estimate: number;
+  comps: Comp[];
+  explanation: string;
+  cma_run_id: string;
+};
