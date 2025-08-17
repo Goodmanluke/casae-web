@@ -21,7 +21,7 @@ export default function Home() {
   const onSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!q.trim()) return;
-  router.push(`/cma?address=${encodeURIComponent(q.trim())}&lat=0&lng=0`);
+  router.push('/cma?address=' + encodeURIComponent(q.trim()) + '&lat=0&lng=0');
   
 };
 
