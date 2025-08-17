@@ -19,15 +19,10 @@ export default function Home() {
   }
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!q.trim()) return;
-    const geo = await geocodeAddress(q.trim());
-    if (!geo) return alert("Couldn’t find that address.");
-    router.push(
-      `/cma?address=${encodeURIComponent(geo.place_name)}&lat=${geo.lat}&lng=${geo.lng}`
-    );
-  };
-
+  e.preventDefault();
+  if (!q.trim()) return;
+  router.push('/cma?address=' + encodeURIComponent(q.trim()) + '&lat=0&lng=0');
+};
   return (
     <div className="min-h-screen grid place-items-center p-6">
       <div className="w-full max-w-2xl space-y-4">
