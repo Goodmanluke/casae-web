@@ -8,9 +8,8 @@ export default function Home() {
   async function geocodeAddress(addr: string) {
     // Minimal client-side Mapbox Geocoding
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(
-      addr
-    )}.json?access_token=${token}&limit=1`;
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(addr)}.json?access_token=${token}&limit=1&country=US`;
+
     const r = await fetch(url);
     const j = await r.json();
     const f = j.features?.[0];
