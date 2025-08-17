@@ -21,7 +21,6 @@ export default function Home() {
   const onSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!q.trim()) return;
-  // Skip Mapbox geocoding; let the backend handle it
 router.push('/cma?address=' + encodeURIComponent(q.trim()) + '&lat=0&lng=0');
   
 };
