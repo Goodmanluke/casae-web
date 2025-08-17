@@ -19,13 +19,12 @@ export default function Home() {
   }
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!q.trim()) return;
-    const geo = await geocodeAddress(q.trim());
-    if (!geo) return alert("Couldn’t find that address.");
-    router.push(
-      `/cma?address=${encodeURIComponent(geo.place_name)}&lat=${geo.lat}&lng=${geo.lng}`
-    );
+  e.preventDefault();
+  if (!q.trim()) return;
+  // Skip Mapbox geocoding; let the backend handle it
+  router.push(`/cma?address=${encodeURIComponent(q.trim())}`);
+};
+
   };
 
   return (
