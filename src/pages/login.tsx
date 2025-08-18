@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import supabase from '../lib/supabaseClient';
+import { logoSrc } from '../lib/logo';
+
 
 export default function Login() {
   const router = useRouter();
@@ -47,7 +49,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
-      <h1 className="text-2xl font-bold mb-4">Casae Login</h1>
+     <img src={logoSrc} alt="CMAi logo" className="h-20 mb-4" />
+      <h1 className="text-2xl font-bold mb-4">CMAi Login</h1>
+
       {error && <p className="text-red-500 mb-2">{error}</p>}
       <form className="flex flex-col space-y-3 w-full max-w-sm">
         <input
