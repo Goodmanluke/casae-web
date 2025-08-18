@@ -44,7 +44,7 @@ const Dashboard = () => {
   const fetchSavedSearches = async (userId: string) => {
     if (!userId) return;
     try {
-      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.casae.app';
+      const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://api.cmai.app';
       const res = await fetch(`${API_BASE}/searches/list?user_id=${userId}`);
       const data = await res.json();
       let results: any[] = [];
