@@ -1,2 +1,2 @@
 // src/lib/logo.ts
-export const logoSrc = 'data:image/png;base64,<very long single-line string>';
+export const logoSrc = '/cmai-logo.png';
