@@ -1,5 +1,7 @@
 import { useRouter } from "next/router";
 import { useState } from "react";
+import { logoSrc } from '../lib/logo';
+
 
 export default function Home() {
   const router = useRouter();
@@ -25,6 +27,7 @@ export default function Home() {
   return (
     <div className="min-h-screen grid place-items-center p-6">
       <div className="w-full max-w-2xl space-y-4">
+        <img src={logoSrc} alt="CMAi logo" className="mx-auto h-20 mb-4" />
         <h1 className="text-3xl font-semibold">Start a CMA</h1>
         <form onSubmit={onSubmit} className="flex gap-2">
           <input
