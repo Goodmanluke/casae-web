@@ -28,7 +28,6 @@ export default function Home() {
 
     const { lat, lng, place_name } = result;
 
-    // Navigate to CMA page with default subject fields
     router.push({
       pathname: "/cma",
       query: {
