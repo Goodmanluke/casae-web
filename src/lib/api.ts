@@ -1,6 +1,5 @@
 // src/lib/api.ts
 
-// Import types from the shared types file
 import type {
   CMAInput,
   AdjustmentInput,
@@ -8,36 +7,28 @@ import type {
   CMAResponse,
 } from "./types";
 
-// Re-export the types so consumers can import them from this module
+// Re-export the types so they are available to import from this module.
 export type { Comp, CMAResponse };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
 
-// Converts an object into a query string, repeating keys for arrays
+// Build a query string from an object; repeats keys for arrays
 function toQS(params: Record<string, any>): string {
   const search = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null) continue;
-    if (Array.isArray(value)) {
-      for (const v of value) search.append(key, String(v));
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    if (Array.isArray(v)) {
+      v.forEach((x) => search.append(k, String(x)));
     } else {
-      search.append(key, String(value));
+      search.append(k, String(v));
     }
-  }
+  });
   return search.toString();
 }
 
-// Generic HTTP helper with minimal headers
-async function request<T>(
-  url: string,
-  options: RequestInit
-): Promise<T> {
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-    },
-  });
+// Generic fetch helper
+async function request<T>(url: string, init: RequestInit): Promise<T> {
+  const res = await fetch(url, init);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(text || `Request failed (${res.status})`);
@@ -46,12 +37,9 @@ async function request<T>(
 }
 
 /**
- * Fetch a baseline CMA for a subject property.
- * Builds a query string from the CMAInput and calls GET /cma/baseline.
+ * Fetch a baseline CMA. Uses GET /cma/baseline.
  */
-export async function cmaBaseline(
-  input: CMAInput
-): Promise<CMAResponse> {
+export async function cmaBaseline(input: CMAInput): Promise<CMAResponse> {
   const { address, lat, lng, beds, baths, sqft } = input.subject;
   const qs = toQS({ address, lat, lng, beds, baths, sqft });
   return request<CMAResponse>(`${API_BASE}/cma/baseline?${qs}`, {
@@ -60,12 +48,9 @@ export async function cmaBaseline(
 }
 
 /**
- * Apply adjustments to an existing CMA run.
- * Builds a query string from the adjustment input and calls GET /cma/adjust.
+ * Apply adjustments to a CMA run. Uses GET /cma/adjust.
  */
-export async function cmaAdjust(
-  input: AdjustmentInput
-): Promise<CMAResponse> {
+export async function cmaAdjust(input: AdjustmentInput): Promise<CMAResponse> {
   const {
     cma_run_id,
     condition,
@@ -90,28 +75,22 @@ export async function cmaAdjust(
 }
 
 /**
- * Call the summary endpoint (remains a POST).
+ * Generate a CMA summary. Uses POST /cma/summary.
  */
 export async function cmaSummary(body: any): Promise<any> {
   return request<any>(`${API_BASE}/cma/summary`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    headers: {
-      "Content-Type": "application/json",
-    },
   });
 }
 
 /**
- * Retrieve a PDF download URL for a CMA run.
- * Calls GET /pdfx to retrieve the URL.
+ * Get a PDF link for a CMA run. Uses GET /pdfx.
  */
-export async function cmaPdf(
-  cma_run_id: string
-): Promise<{ url: string }> {
-  const qs = encodeURIComponent(cma_run_id);
+export async function cmaPdf(cma_run_id: string): Promise<{ url: string }> {
   return request<{ url: string }>(
-    `${API_BASE}/pdfx?cma_run_id=${qs}`,
-    { method: "GET" }
+    `${API_BASE}/pdfx?cma_run_id=${encodeURIComponent(cma_run_id)}`,
+    { method: "GET" },
   );
 }
