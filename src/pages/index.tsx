@@ -25,16 +25,7 @@ export default function Home() {
     if (!q.trim()) return;
     router.push({
       pathname: "/cma",
-      query: {
-        address: q.trim(),
-        lat: "0",
-        lng: "0",
-        beds: "0",
-        baths: "0",
-        sqft: "0",
-      },
-    });
-  };
+      query: { address: q.trim() },
 
   return (
     <main className="max-w-xl mx-auto p-6">
