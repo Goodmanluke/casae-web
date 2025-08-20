@@ -50,16 +50,18 @@ export default function CMA() {
         setBaselineData(data);
         setAdjustedData(null);
         setTab("adjustments");
+              if (!data?.comps || data.comps.length === 0) {
+        setError("No comparable properties found. Please check the address or provide property details.");
+      }
       } catch (e: any) {
         setError(e?.message || "Failed to load baseline");
       } finally {
         setLoading(false);
       }
-    };
-    run();
-  }, [address, lat, lng]);
-
-  // --- helpers ---
+  };
+  run();
+}, [address]);
+// --- helpers -------
   const toggleRenovation = (item: string) => {
     setRenovations((prev) =>
       prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
