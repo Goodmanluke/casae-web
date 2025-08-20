@@ -29,26 +29,24 @@ export default function CMA() {
   const [addBeds, setAddBeds] = useState(0);
   const [addBaths, setAddBaths] = useState(0);
   const [addSqft, setAddSqft] = useState(0);
-  const [dockLength, setDockLength] = useState(0);
+  ckLength, setDockLength] = useState(0);
 
   // --- baseline fetch ---
   useEffect(() => {
     const run = async () => {
-      if (!address || !lat || !lng) return;
+          if (!address) return;
       setLoading(true);
       setError(null);
       try {
         const data = await cmaBaseline({
-          subject: {
+          subject:{
             address,
-            lat: Number(lat),
-            lng: Number(lng),
-            beds: 0,
-            baths: 0,
-            sqft: 0,
+                
+          
+            
           },
           rules: {},
-        });
+        })
         setBaselineData(data);
         setAdjustedData(null);
         setTab("adjustments");
