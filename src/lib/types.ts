@@ -24,7 +24,7 @@ export type AdjustmentInput = {
   add_beds?: number;
   add_baths?: number;
   add_sqft?: number;
-  dock_length?: number;
+  
 };
 
 export type Comp = {
