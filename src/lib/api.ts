@@ -10,7 +10,7 @@ import type {
 // Re‑export types so other files (e.g. cma.tsx) can import them from this module.
 export type { CMAInput, AdjustmentInput, Comp, CMAResponse };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://casae-api.onrender.com";
 
 /**
  * Build a query string from a plain object.
