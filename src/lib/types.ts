@@ -17,6 +17,7 @@ export type CMAInput = {
 };
 
 export type AdjustmentInput = {
+  
   cma_run_id: string;
   condition?: string;
   renovations?: string[];
@@ -31,6 +32,8 @@ export type Comp = {
   address: string;
   raw_price: number;
   living_sqft: number;
+    price?: number;
+  sqft?: number;
   beds: number;
   baths: number;
   year_built?: number;
