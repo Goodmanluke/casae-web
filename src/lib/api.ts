@@ -63,7 +63,7 @@ export async function cmaAdjust(input: AdjustmentInput): Promise<CMAResponse> {
     add_beds,
     add_baths,
     add_sqft,
-    dock_length,
+   
   } = input;
 
   const qs = toQS({
@@ -73,7 +73,7 @@ export async function cmaAdjust(input: AdjustmentInput): Promise<CMAResponse> {
     add_beds,
     add_baths,
     add_sqft,
-    dock_length,
+   
   });
 
   return request<CMAResponse>(`${API_BASE}/cma/adjust?${qs}`, {
