@@ -1,211 +1,165 @@
-// src/pages/cma.tsx
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { cmaBaseline, cmaAdjust, cmaPdf } from "../lib/api";
 import type { CMAResponse, Comp } from "../lib/api";
 
-
 type Tab = "snapshot" | "adjustments" | "result";
 
 export default function CMA() {
   const { query } = useRouter();
-  const { address, lat, lng } = query as {
-    address?: string;
-    lat?: string;
-    lng?: string;
-  };
-
-  // --- state ---
-  const [tab, setTab] = useState<Tab>("snapshot");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  const [address, setAddress] = useState("");
   const [baselineData, setBaselineData] = useState<CMAResponse | null>(null);
   const [adjustedData, setAdjustedData] = useState<CMAResponse | null>(null);
+  const [tab, setTab] = useState<Tab>("snapshot");
 
-  // adjustment form state
   const [condition, setCondition] = useState("Good");
   const [renovations, setRenovations] = useState<string[]>([]);
   const [addBeds, setAddBeds] = useState(0);
   const [addBaths, setAddBaths] = useState(0);
   const [addSqft, setAddSqft] = useState(0);
-  ckLength, setDockLength] = useState(0);
 
-  // --- baseline fetch ---
   useEffect(() => {
-    const run = async () => {
-          if (!address) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const data = await cmaBaseline({
-          subject:{
-            address,
-                
-          
-            
-          },
-          rules: {},
-        })
-        setBaselineData(data);
-        setAdjustedData(null);
-        setTab("adjustments");
-              if (!data?.comps || data.comps.length === 0) {
-        setError("No comparable properties found. Please check the address or provide property details.");
-      }
-      } catch (e: any) {
-        setError(e?.message || "Failed to load baseline");
-      } finally {
-        setLoading(false);
-      }
-  };
-  run();
-}, [address]);
-// --- helpers -------
-  const toggleRenovation = (item: string) => {
-    setRenovations((prev) =>
-      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
-    );
+    if (query.address) {
+      setAddress(query.address as string);
+      fetchBaseline(query.address as string);
+    }
+  }, [query.address]);
+
+  const fetchBaseline = async (addr: string) => {
+    const data = await cmaBaseline(addr);
+    setBaselineData(data);
+    setTab("snapshot");
   };
 
   const applyAdjustments = async () => {
-    if (!baselineData?.cma_run_id) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await cmaAdjust({
-        cma_run_id: baselineData.cma_run_id!,
-        condition,
-        renovations,
-        add_beds: addBeds,
-        add_baths: addBaths,
-        add_sqft: addSqft,
-        dock_length: dockLength,
-      });
-      setAdjustedData(data);
-      setTab("result");
-    } catch (e: any) {
-      setError(e?.message || "Failed to apply adjustments");
-    } finally {
-      setLoading(false);
-    }
+    if (!baselineData) return;
+    const data = await cmaAdjust({
+      cma_run_id: baselineData?.cma_run_id!,
+      condition,
+      renovations,
+      add_beds: addBeds,
+      add_baths: addBaths,
+      add_sqft: addSqft,
+    });
+    setAdjustedData(data);
+    setTab("result");
+  };
+
+  const toggleRenovation = (renovation: string) => {
+    setRenovations((prev) =>
+      prev.includes(renovation)
+        ? prev.filter((r) => r !== renovation)
+        : [...prev, renovation]
+    );
   };
 
   const downloadPdf = async () => {
-    const id = adjustedData?.cma_run_id || baselineData?.cma_run_id;
-    if (!id) return;
-    try {
-      const { url } = await cmaPdf(id);
-      window.open(url, "_blank");
-    } catch (e: any) {
-      alert(e?.message || "Failed to create PDF");
-    }
+    if (!baselineData) return;
+    await cmaPdf(baselineData.cma_run_id);
   };
 
-  // --- derived state ---
-  const compsToShow: Comp[] | undefined =
-    tab === "result" ? adjustedData?.comps : baselineData?.comps;
-
-  const estimateToShow: number | undefined =
-    tab === "result" ? adjustedData?.estimate : baselineData?.estimate;
-
-  const cmaRunId =
-    (tab === "result" ? adjustedData?.cma_run_id : baselineData?.cma_run_id) ||
-    "";
-
-  // --- UI ---
-  return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold">
-          {address ?? "Enter an address…"}
-        </h1>
-        <div className="text-3xl font-bold">
-          {estimateToShow !== undefined
-            ? `$${estimateToShow.toLocaleString()}`
-            : "—"}
+  const renderComps = (comps: Comp[]) => (
+    <div className="grid grid-cols-1 gap-2 mt-4">
+      {comps.map((comp, idx) => (
+        <div
+          key={idx}
+          className="border rounded p-2 flex justify-between items-center"
+        >
+          <div>
+            <div className="font-semibold">{comp.address}</div>
+            <div className="text-sm text-gray-600">
+              {comp.beds} bd | {comp.baths} ba | {comp.living_sqft} sqft
+            </div>
+          </div>
+          <div className="font-bold">${comp.price?.toLocaleString()}</div>
         </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">CMA Tool</h1>
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Enter property address"
+          className="border rounded p-2 w-2/3"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+        />
+        <button
+          className="ml-2 bg-blue-500 text-white px-4 py-2 rounded"
+          onClick={() => fetchBaseline(address)}
+        >
+          Run CMA
+        </button>
       </div>
 
-      {/* Tabs + Download */}
-      <div className="flex gap-3">
+      <div className="mb-4 flex space-x-4">
         <button
-          className={tab === "snapshot" ? "font-semibold" : "text-gray-500"}
+          className={`px-3 py-1 rounded ${
+            tab === "snapshot" ? "bg-blue-500 text-white" : "bg-gray-200"
+          }`}
           onClick={() => setTab("snapshot")}
-          disabled={!baselineData}
         >
           Snapshot
         </button>
         <button
-          className={tab === "adjustments" ? "font-semibold" : "text-gray-500"}
+          className={`px-3 py-1 rounded ${
+            tab === "adjustments" ? "bg-blue-500 text-white" : "bg-gray-200"
+          }`}
           onClick={() => setTab("adjustments")}
-          disabled={!baselineData}
         >
           Adjustments
         </button>
         <button
-          className={tab === "result" ? "font-semibold" : "text-gray-500"}
+          className={`px-3 py-1 rounded ${
+            tab === "result" ? "bg-blue-500 text-white" : "bg-gray-200"
+          }`}
           onClick={() => setTab("result")}
-          disabled={!adjustedData}
         >
-          New CMA
-        </button>
-        <div className="flex-1" />
-        <button
-          className="border rounded px-3 py-1"
-          onClick={downloadPdf}
-          disabled={!cmaRunId || loading}
-        >
-          Download PDF
+          Result
         </button>
       </div>
 
-      {/* Status */}
-      {loading && <div>Loading…</div>}
-      {!!error && <div className="text-red-600">Error: {error}</div>}
-
-      {/* Snapshot */}
       {tab === "snapshot" && baselineData && (
-        <>
-          <h2 className="text-lg font-medium">AI-selected comps</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            {compsToShow?.map((c, i) => (
-              <div key={i} className="border rounded p-4">
-                <div className="font-medium">{c.address}</div>
-                <div className="text-sm opacity-70">
-                  ${c.price?.toLocaleString()} · {c.beds ?? "—"} bd ·{" "}
-                  {c.baths ?? "—"} ba · {c.sqft ?? "—"} sqft{" "}
-                  {c.distance_mi ? `· ${c.distance_mi.toFixed(2)} mi` : ""}
-                </div>
-              </div>
-            ))}
+        <div>
+          <h2 className="text-xl font-bold mb-2">Baseline CMA</h2>
+          <div className="text-lg font-bold mb-2">
+            Estimated Value: ${baselineData.estimate?.toLocaleString()}
           </div>
-        </>
+          {renderComps(baselineData.comps)}
+          <button
+            className="mt-4 bg-green-500 text-white px-4 py-2 rounded"
+            onClick={downloadPdf}
+          >
+            Download PDF
+          </button>
+        </div>
       )}
 
-      {/* Adjustments */}
       {tab === "adjustments" && baselineData && (
-        <div className="space-y-4">
-          <label className="block">
-            <span className="block mb-1">Condition</span>
+        <div>
+          <h2 className="text-xl font-bold mb-2">Adjust Property</h2>
+          <div className="mb-2">
+            <label className="block">Condition</label>
             <select
               value={condition}
               onChange={(e) => setCondition(e.target.value)}
-              className="border rounded p-2 w-full"
+              className="border rounded p-2"
             >
-              {["Poor", "Fair", "Good", "Very Good", "Excellent"].map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
+              <option value="Poor">Poor</option>
+              <option value="Fair">Fair</option>
+              <option value="Good">Good</option>
+              <option value="Excellent">Excellent</option>
             </select>
-          </label>
+          </div>
 
-          <div>
+          <div className="mb-2">
             <div className="mb-1">Renovations</div>
             <div className="flex gap-4 flex-wrap">
-              {["Kitchen", "Bath", "Flooring", "Roof", "Dock"].map((opt) => (
+              {["Kitchen", "Bath", "Flooring", "Roof"].map((opt) => (
                 <label key={opt} className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -218,78 +172,59 @@ export default function CMA() {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-4 gap-3">
-            <label className="block">
-              <span className="block mb-1">Add Beds</span>
-              <input
-                type="number"
-                value={addBeds}
-                onChange={(e) => setAddBeds(Number(e.target.value))}
-                className="border rounded p-2 w-full"
-                min={0}
-              />
-            </label>
-            <label className="block">
-              <span className="block mb-1">Add Baths</span>
-              <input
-                type="number"
-                value={addBaths}
-                onChange={(e) => setAddBaths(Number(e.target.value))}
-                className="border rounded p-2 w-full"
-                min={0}
-              />
-            </label>
-            <label className="block">
-              <span className="block mb-1">Add Sqft</span>
-              <input
-                type="number"
-                value={addSqft}
-                onChange={(e) => setAddSqft(Number(e.target.value))}
-                className="border rounded p-2 w-full"
-                min={0}
-              />
-            </label>
-            <label className="block">
-              <span className="block mb-1">Dock Length</span>
-              <input
-                type="number"
-                value={dockLength}
-                onChange={(e) => setDockLength(Number(e.target.value))}
-                className="border rounded p-2 w-full"
-                min={0}
-              />
-            </label>
+          <div className="mb-2">
+            <label className="block">Add Beds</label>
+            <input
+              type="number"
+              value={addBeds}
+              onChange={(e) => setAddBeds(Number(e.target.value))}
+              className="border rounded p-2"
+            />
           </div>
 
-          <div className="pt-2">
-            <button
-              className="border rounded px-3 py-1"
-              onClick={applyAdjustments}
-              disabled={!baselineData?.cma_run_id || loading}
-            >
-              Apply Adjustments
-            </button>
+          <div className="mb-2">
+            <label className="block">Add Baths</label>
+            <input
+              type="number"
+              value={addBaths}
+              onChange={(e) => setAddBaths(Number(e.target.value))}
+              className="border rounded p-2"
+            />
           </div>
+
+          <div className="mb-2">
+            <label className="block">Add Sqft</label>
+            <input
+              type="number"
+              value={addSqft}
+              onChange={(e) => setAddSqft(Number(e.target.value))}
+              className="border rounded p-2"
+            />
+          </div>
+
+          <button
+            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+            onClick={applyAdjustments}
+          >
+            Apply Adjustments
+          </button>
         </div>
       )}
 
-      {/* Result */}
       {tab === "result" && adjustedData && (
-        <>
-          <h2 className="text-lg font-medium">Adjusted Comps</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            {compsToShow?.map((c, i) => (
-              <div key={i} className="border rounded p-4">
-                <div className="font-medium">{c.address}</div>
-                <div className="text-sm opacity-70">
-                  ${c.price?.toLocaleString()} · {c.beds ?? "—"} bd ·{" "}
-                  {c.baths ?? "—"} ba · {c.sqft ?? "—"} sqft{" "}
-                  {c.distance_mi ? `· ${c.distance_mi.toFixed(2)} mi` : ""}
-                </div>
-              </div>
-            ))}
+        <div>
+          <h2 className="text-xl font-bold mb-2">Adjusted CMA</h2>
+          <div className="text-lg font-bold mb-2">
+            Adjusted Value: ${adjustedData.estimate?.toLocaleString()}
           </div>
-        </>
+          {renderComps(adjustedData.comps)}
+          <button
+            className="mt-4 bg-green-500 text-white px-4 py-2 rounded"
+            onClick={downloadPdf}
+          >
+            Download PDF
+          </button>
+        </div>
       )}
     </div>
   );
