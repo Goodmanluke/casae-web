@@ -1,7 +1,9 @@
 // src/pages/cma.tsx
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { cmaBaseline, cmaAdjust, cmaPdf, CMAResponse, Comp } from "../lib/api";
+import { cmaBaseline, cmaAdjust, cmaPdf } from "../lib/api";
+import type { CMAResponse, Comp } from "../lib/api";
+
 
 type Tab = "snapshot" | "adjustments" | "result";
 
