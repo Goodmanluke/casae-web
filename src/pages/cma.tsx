@@ -4,7 +4,7 @@ import { cmaBaseline, cmaAdjust, cmaPdf } from "../lib/api";
 import type { CMAResponse, Comp } from "../lib/api";
 
 type Tab = "snapshot" | "adjustments" | "result";
-
+ 
 export default function CMA() {
   const { query } = useRouter();
   const [address, setAddress] = useState("");
