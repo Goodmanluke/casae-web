@@ -26,7 +26,7 @@ export default function CMA() {
   }, [query.address]);
 
   const fetchBaseline = async (addr: string) => {
-    const data = await cmaBaseline(addr);
+    const data = await cmaBaseline({ subject: { address: addr } } as any);
     setBaselineData(data);
     setTab("snapshot");
   };
