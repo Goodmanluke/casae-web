@@ -26,8 +26,8 @@ export default function Home() {
     router.push({
       pathname: "/cma",
       query: { address: q.trim() },
-
-  return (
+  });
+  r  eturn (
     <main className="max-w-xl mx-auto p-6">
       <img src={logoSrc} alt="CMAi logo" className="mx-auto h-20 mb-4" />
       <h1 className="text-xl font-semibold mb-4">Start a CMA</h1>
