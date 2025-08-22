@@ -7,7 +7,7 @@ import type {
   CMAResponse,
 } from "./types";
 
-// Re‑export types so other files (e.g. cma.tsx) can import them from this module.
+// Re-export types so other files (e.g. cma.tsx) can import them from this module.
 export type { CMAInput, AdjustmentInput, Comp, CMAResponse };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://casae-api.onrender.com";
@@ -16,7 +16,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "https://casae-api.onrender
  * Build a query string from a plain object.
  * Arrays are encoded as repeated keys (?a=1&a=2).
  */
-function toQS(params: Record<string, unknown>): string {
+function toQS(params: Record<string, any>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null) continue;
@@ -42,13 +42,13 @@ async function request<T>(url: string, init: RequestInit): Promise<T> {
 }
 
 /**
- * Fetch a baseline CMA (GET /cma/baseline).
+ * Fetch a baseline CMA (POST /cma/baseline).
  */
 export async function cmaBaseline(input: CMAInput): Promise<CMAResponse> {
-  const { address, lat, lng, beds, baths, sqft } = input.subject;
-  const qs = toQS({ address, lat, lng, beds, baths, sqft });
-  return request<CMAResponse>(`${API_BASE}/cma/baseline?${qs}`, {
-    method: "GET",
+  return request<CMAResponse>(`${API_BASE}/cma/baseline`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
   });
 }
 
@@ -63,7 +63,6 @@ export async function cmaAdjust(input: AdjustmentInput): Promise<CMAResponse> {
     add_beds,
     add_baths,
     add_sqft,
-   
   } = input;
 
   const qs = toQS({
@@ -73,7 +72,6 @@ export async function cmaAdjust(input: AdjustmentInput): Promise<CMAResponse> {
     add_beds,
     add_baths,
     add_sqft,
-   
   });
 
   return request<CMAResponse>(`${API_BASE}/cma/adjust?${qs}`, {
