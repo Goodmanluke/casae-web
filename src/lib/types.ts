@@ -44,6 +44,8 @@ export type Comp = {
 
 export type CMAResponse = {
   estimate: number;
+   subject: Subject;
+  
   comps: Comp[];
   explanation: string;
   cma_run_id: string;
