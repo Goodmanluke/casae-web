@@ -90,7 +90,7 @@ export default function CMA() {
   };
 
   // Renders a simple grid of comps using the API fields your backend returns
- const renderComps = (comps: Comp[]) => (
+const renderComps = (comps: Comp[]) => (
   <div className="grid grid-cols-1 gap-3 mt-3">
     {comps.map((comp, idx) => (
       <div key={comp.id ?? idx} className="border rounded p-3">
@@ -99,13 +99,13 @@ export default function CMA() {
           {comp.beds} bd | {comp.baths} ba | {comp.living_sqft} sqft
         </div>
         <div className="text-lg">
-          $
-          {( (comp as any).raw_price ?? (comp as any).price ?? 0 ).toLocaleString()}
+          ${((comp.raw_price ?? 0)).toLocaleString()}
         </div>
       </div>
     ))}
   </div>
 );
+
 
   return (
     <main className="max-w-3xl mx-auto p-4">
