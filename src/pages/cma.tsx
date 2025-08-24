@@ -90,33 +90,22 @@ export default function CMA() {
   };
 
   // Renders a simple grid of comps using the API fields your backend returns
-  const renderComps = (comps: Comp[]) => {
-    if (!comps?.length) {
-      return <div className="opacity-70">No comparables returned.</div>;
-    }
-    return (
-      <div className="grid grid-cols-1 gap-3 mt-3">
-        {comps.map((comp, idx) => (
-          <div key={comp.id ?? idx} className="border rounded p-3">
-            <div className="font-semibold">{comp.address}</div>
-            <div className="text-sm opacity-80">
-              {comp.beds} bd | {comp.baths} ba | {comp.living_sqft} sqft
-            </div>
-            <div className="text-lg">
-              $
-              {(
-                // your backend returns raw_price, we prefer that
-                (comp as any).raw_price ??
-                // if you later add price alias, this keeps working
-                (comp as any).price ??
-                0
-              ).toLocaleString()}
-            </div>
-          </div>
-        ))}
+ const renderComps = (comps: Comp[]) => (
+  <div className="grid grid-cols-1 gap-3 mt-3">
+    {comps.map((comp, idx) => (
+      <div key={comp.id ?? idx} className="border rounded p-3">
+        <div className="font-semibold">{comp.address}</div>
+        <div className="text-sm opacity-80">
+          {comp.beds} bd | {comp.baths} ba | {comp.living_sqft} sqft
+        </div>
+        <div className="text-lg">
+          $
+          {( (comp as any).raw_price ?? (comp as any).price ?? 0 ).toLocaleString()}
+        </div>
       </div>
-    );
-  };
+    ))}
+  </div>
+);
 
   return (
     <main className="max-w-3xl mx-auto p-4">
