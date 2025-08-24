@@ -164,6 +164,17 @@ const renderComps = (comps: Comp[]) => (
           <div className="mb-2">
             Estimated Value: ${baselineData.estimate?.toLocaleString()}
           </div>
+               {baselineData.subject && (
+      <div className="mb-2">
+        <div className="font-semibold">{baselineData.subject.address}</div>
+        <div className="text-sm opacity-80">
+          {baselineData.subject.beds} bd | {baselineData.subject.baths} ba | {baselineData.subject.sqft} sqft
+        </div>
+      </div>
+    )}
+
+    )}  
+  
           {renderComps(baselineData.comps)}
           <button onClick={downloadPdf} className="mt-3 border rounded px-3 py-2">
             Download PDF
