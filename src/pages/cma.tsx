@@ -39,6 +39,7 @@ export default function CMA() {
     try {
       const data = await cmaBaseline({ subject: { address: addr } } as any);
       setBaselineData(data);
+      setAdjustedData(null);
       setTab("snapshot");
     } catch (err: any) {
       console.error("Baseline failed:", err);
@@ -90,22 +91,21 @@ export default function CMA() {
   };
 
   // Renders a simple grid of comps using the API fields your backend returns
-const renderComps = (comps: Comp[]) => (
-  <div className="grid grid-cols-1 gap-3 mt-3">
-    {comps.map((comp, idx) => (
-      <div key={comp.id ?? idx} className="border rounded p-3">
-        <div className="font-semibold">{comp.address}</div>
-        <div className="text-sm opacity-80">
-          {comp.beds} bd | {comp.baths} ba | {comp.living_sqft} sqft
+  const renderComps = (comps: Comp[]) => (
+    <div className="grid grid-cols-1 gap-3 mt-3">
+      {comps.map((comp, idx) => (
+        <div key={comp.id ?? idx} className="border rounded p-3">
+          <div className="font-semibold">{comp.address}</div>
+          <div className="text-sm opacity-80">
+            {comp.beds} bd | {comp.baths} ba | {comp.living_sqft} sqft
+          </div>
+          <div className="text-lg">
+            ${((comp.raw_price ?? 0)).toLocaleString()}
+          </div>
         </div>
-        <div className="text-lg">
-          ${((comp.raw_price ?? 0)).toLocaleString()}
-        </div>
-      </div>
-    ))}
-  </div>
-);
-
+      ))}
+    </div>
+  );
 
   return (
     <main className="max-w-3xl mx-auto p-4">
@@ -129,11 +129,7 @@ const renderComps = (comps: Comp[]) => (
 
       {/* Loading / Error */}
       {loading && <div className="mb-3">Loading…</div>}
-      {error && (
-        <div className="mb-3 text-red-600">
-          {error}
-        </div>
-      )}
+      {error && <div className="mb-3 text-red-600">{error}</div>}
 
       {/* Tabs */}
       <div className="flex gap-2 mb-4">
@@ -164,18 +160,19 @@ const renderComps = (comps: Comp[]) => (
           <div className="mb-2">
             Estimated Value: ${baselineData.estimate?.toLocaleString()}
           </div>
-               {baselineData.subject && (
-      <div className="mb-2">
-        <div className="font-semibold">{baselineData.subject.address}</div>
-        <div className="text-sm opacity-80">
-          {baselineData.subject.beds} bd | {baselineData.subject.baths} ba | {baselineData.subject.sqft} sqft
-        </div>
-      </div>
-    )}
 
-    )}  
-  
+          {baselineData.subject && (
+            <div className="mb-2">
+              <div className="font-semibold">{baselineData.subject.address}</div>
+              <div className="text-sm opacity-80">
+                {baselineData.subject.beds} bd | {baselineData.subject.baths} ba |{" "}
+                {baselineData.subject.sqft} sqft
+              </div>
+            </div>
+          )}
+
           {renderComps(baselineData.comps)}
+
           <button onClick={downloadPdf} className="mt-3 border rounded px-3 py-2">
             Download PDF
           </button>
