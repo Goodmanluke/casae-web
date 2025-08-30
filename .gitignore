@@ -90,7 +90,7 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public  <- Comment this out or remove it
 
 # Storybook build outputs
 .out
