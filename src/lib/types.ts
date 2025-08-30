@@ -1,10 +1,10 @@
 export type Subject = {
   address: string;
-  lat: number;
-  lng: number;
-  beds: number;
-  baths: number;
-  sqft: number;
+  lat?: number;
+  lng?: number;
+  beds?: number;
+  baths?: number;
+  sqft?: number;
   year_built?: number;
   lot_sqft?: number;
   condition?: string;
@@ -40,6 +40,7 @@ export type Comp = {
   lot_sqft?: number;
   distance_mi?: number;
   similarity: number;
+  photo_url?: string;
 };
 
 export type CMAResponse = {
