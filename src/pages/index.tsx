@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { logoSrc } from "../lib/logo";
 
 /**
@@ -13,6 +13,9 @@ import { logoSrc } from "../lib/logo";
 export default function Home() {
   const router = useRouter();
   const [q, setQ] = useState("");
+  const [introDone, setIntroDone] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const timerRef = useRef<number | null>(null);
 
   /**
    * Handles form submission. Immediately navigates to the CMA wizard
@@ -27,21 +30,50 @@ export default function Home() {
     });
   };
 
+  useEffect(() => {
+    const finish = () => setIntroDone(true);
+    timerRef.current = window.setTimeout(finish, 3000);
+    const onAny = () => {
+      if (!introDone) finish();
+    };
+    window.addEventListener("scroll", onAny, { once: true });
+    window.addEventListener("click", onAny, { once: true });
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      window.removeEventListener("scroll", onAny);
+      window.removeEventListener("click", onAny);
+    };
+  }, [introDone]);
+
+  // When intro completes, play a longer enlarge + fade (4s) and go to login
+  useEffect(() => {
+    if (!introDone) return;
+    setExiting(true);
+    const t = window.setTimeout(() => {
+      router.replace("/login");
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, [introDone, router]);
+
   return (
-    <main className="max-w-xl mx-auto p-6">
-      <img src={logoSrc} alt="CMAi logo" className="max-auto h-20 mb-4" />
-      <h1 className="text-xl font-semibold mb-4">Start a CMA</h1>
-      <form onSubmit={onSubmit} className="flex gap-2">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Enter subject property address"
-          className="flex-1 border rounded-xl px-4 py-3"
-        />
-        <button type="submit" className="px-4 py-3 rounded-xl border">
-          Go
-        </button>
-      </form>
+    <main className="min-h-screen relative overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 transition-filter duration-700" style={{ filter: introDone ? "blur(0px)" : "blur(10px)" }}>
+        <img src="/bg-dark.svg" className="w-full h-full object-cover" alt="background" />
+      </div>
+
+      {/* Centerpiece Logo + Motto */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div
+          className={`transition-all ease-out ${exiting ? "opacity-0" : introDone ? "opacity-100" : "opacity-100"}`}
+          style={{ transformOrigin: "center", transitionDuration: exiting ? '4000ms' : '700ms', transform: exiting ? 'scale(1.6)' : (introDone ? 'scale(0.9)' : 'scale(1)') }}
+        >
+          <img src={logoSrc} alt="CMAi" className="h-40 mx-auto drop-shadow-xl" />
+          <div className="text-cyan-200 text-center mt-4 text-xl font-semibold tracking-wide">CMAi</div>
+        </div>
+      </div>
+
+      {/* No content layer here; we redirect to /login after the intro */}
     </main>
   );
 }
