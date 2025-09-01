@@ -128,7 +128,11 @@ export default function Properties() {
           .delete()
           .eq('id', propertyToDelete.id);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error deleting property:', error);
+          alert('Failed to delete property');
+          return;
+        }
         
         // Refresh properties list
         const { data: sessionData } = await supabase.auth.getSession();
@@ -141,13 +145,20 @@ export default function Properties() {
             .limit(50);
           setProperties(data || []);
         }
+        
+        setShowDeleteModal(false);
+        setPropertyToDelete(null);
       } else if (deleteMode === "multiple" && selectedProperties.length > 0) {
         const { error } = await supabase
           .from('properties')
           .delete()
           .in('id', selectedProperties);
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error deleting properties:', error);
+          alert('Failed to delete properties');
+          return;
+        }
         
         // Refresh properties list
         const { data: sessionData } = await supabase.auth.getSession();
@@ -163,10 +174,8 @@ export default function Properties() {
         
         // Clear selection
         setSelectedProperties([]);
+        setShowDeleteModal(false);
       }
-      
-      setShowDeleteModal(false);
-      setPropertyToDelete(null);
     } catch (error) {
       console.error('Error deleting property:', error);
       alert('Failed to delete property');
