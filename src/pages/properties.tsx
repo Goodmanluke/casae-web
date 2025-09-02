@@ -261,13 +261,13 @@ export default function Properties() {
               </div>
               
               <div>
-                <label className="block text-white/80 font-medium mb-3 text-sm uppercase tracking-wide">
+                <label className="block text-white font-medium mb-3 text-sm uppercase tracking-wide">
                   Sort By
                 </label>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="w-full bg-white/20 backdrop-blur-sm border border-white/30 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all duration-300"
+                  className="w-full bg-slate-800/80 border border-white/40 text-white px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all duration-300"
                 >
                   <option value="raw_price">Price</option>
                   <option value="beds">Bedrooms</option>

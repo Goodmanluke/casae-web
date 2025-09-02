@@ -112,10 +112,10 @@ export default function CMA() {
     );
   };
 
-  const downloadPdf = async () => {
+  const downloadPdf = async (useAdjusted: boolean = false) => {
     if (!baselineData) return;
     try {
-      await cmaPdf(baselineData.cma_run_id);
+      await cmaPdf(baselineData.cma_run_id, { adjusted: useAdjusted });
     } catch (err) {
       console.error("PDF failed:", err);
       alert("Could not start PDF download.");
@@ -405,7 +405,7 @@ export default function CMA() {
 
                   <div className="flex justify-center gap-4">
                     <button
-                      onClick={downloadPdf}
+                      onClick={() => downloadPdf(false)}
                       className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
                     >
                       Download PDF
@@ -568,7 +568,7 @@ export default function CMA() {
 
                   <div className="flex justify-center">
                     <button
-                      onClick={downloadPdf}
+                      onClick={() => downloadPdf(true)}
                       className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
                     >
                       Download Adjusted PDF

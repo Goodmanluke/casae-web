@@ -115,15 +115,14 @@ export async function cmaSummary(body: unknown): Promise<{ summary: string }> {
 /**
  * Download a PDF report for a CMA run (GET /pdfx).
  */
-export async function cmaPdf(cma_run_id: string): Promise<void> {
-  const qs = encodeURIComponent(cma_run_id);
-  const url = `${API_BASE}/pdfx?cma_run_id=${qs}`;
+export async function cmaPdf(cma_run_id: string, opts?: { adjusted?: boolean }): Promise<void> {
+  const qsId = encodeURIComponent(cma_run_id);
+  const qAdj = opts?.adjusted ? '&adjusted=1' : '';
+  const url = `${API_BASE}/pdfx?cma_run_id=${qsId}${qAdj}`;
 
-  // Prefer opening in a new tab first – most reliable across CSP/CORS
   const popup = window.open(url, '_blank');
   if (popup) return;
 
-  // Fallback to blob download if popups are blocked
   const response = await fetch(url, { method: 'GET', mode: 'cors' });
   if (!response.ok) throw new Error(`Failed to generate PDF: ${response.status}`);
 
@@ -131,7 +130,7 @@ export async function cmaPdf(cma_run_id: string): Promise<void> {
   const objectUrl = window.URL.createObjectURL(pdfBlob);
   const link = document.createElement('a');
   link.href = objectUrl;
-  link.download = `cma_report_${cma_run_id}.pdf`;
+  link.download = `cma_report_${cma_run_id}${opts?.adjusted ? '_adjusted' : ''}.pdf`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
