@@ -22,13 +22,21 @@ export default async function handler(
       })
     }
 
-    // Get the plan details from your database
-    // For now, we'll use a hardcoded price ID - you'll need to fetch this from Supabase
-    const stripePriceId = process.env.STRIPE_PRICE_ID_PREMIUM || process.env.STRIPE_PRICE_ID_PRO
+    // Get the Stripe price ID from environment
+    const stripePriceId = process.env.STRIPE_PRICE_ID_PREMIUM
 
     if (!stripePriceId) {
+      console.error('STRIPE_PRICE_ID_PREMIUM not set in environment variables')
       return res.status(500).json({ error: 'Stripe price ID not configured' })
     }
+
+    console.log('Creating checkout session with:', {
+      userId,
+      planId,
+      stripePriceId,
+      successUrl,
+      cancelUrl
+    })
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
@@ -42,17 +50,21 @@ export default async function handler(
       ],
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
-      client_reference_id: userId, // To link the session to your user
+      client_reference_id: userId,
       metadata: {
         userId,
         planId,
       },
-      customer_creation: 'always', // Create a new customer
+      customer_creation: 'always',
     })
 
+    console.log('Checkout session created successfully:', session.id)
     res.status(200).json({ sessionId: session.id, url: session.url })
   } catch (error) {
     console.error('Error creating checkout session:', error)
-    res.status(500).json({ error: 'Failed to create checkout session' })
+    res.status(500).json({ 
+      error: 'Failed to create checkout session',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
   }
 } 

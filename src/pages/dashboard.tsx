@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Navigation from '../components/Navigation';
-import { useSubscription } from '../hooks/useSubscription';
 
 /**
  * Enhanced dashboard page with stunning modern design.
@@ -25,7 +24,9 @@ const Dashboard = () => {
   
   // Get user ID for subscription
   const [userId, setUserId] = useState<string | undefined>();
-  const { subscription, loading: subLoading, isPremium, createCheckoutSession } = useSubscription(userId);
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
 
   useEffect(() => {
     // Check for an active session. If there is no session, redirect to login.
@@ -176,16 +177,57 @@ const Dashboard = () => {
   // Start Stripe checkout for subscription
   const handleSubscribe = async () => {
     try {
-      // Get the first available plan (Premium plan)
-      const plans = await fetch('/api/subscription-plans').then(res => res.json());
+      setSubLoading(true);
+      setSubError(null);
+      
+      console.log('Fetching subscription plans...');
+      const response = await fetch('/api/subscription-plans');
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Failed to fetch plans: ${errorData.details || errorData.error || 'Unknown error'}`);
+      }
+      
+      const plans = await response.json();
+      console.log('Available plans:', plans);
+      
       if (plans.length > 0) {
-        await createCheckoutSession(plans[0].id);
+        console.log('Creating checkout session for plan:', plans[0].id);
+        
+        // Create checkout session directly
+        const checkoutResponse = await fetch('/api/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            planId: plans[0].id,
+            successUrl: `${window.location.origin}/dashboard?success=true`,
+            cancelUrl: `${window.location.origin}/dashboard?canceled=true`,
+          }),
+        });
+
+        if (!checkoutResponse.ok) {
+          const errorData = await checkoutResponse.json();
+          throw new Error(`Checkout failed: ${errorData.details || errorData.error || 'Unknown error'}`);
+        }
+
+        const { url } = await checkoutResponse.json();
+        console.log('Redirecting to Stripe checkout:', url);
+        
+        // Redirect to Stripe Checkout
+        window.location.href = url;
       } else {
-        alert('No subscription plans available.');
+        throw new Error('No subscription plans available.');
       }
     } catch (err) {
-      console.error(err);
-      alert('Subscription checkout failed.');
+      console.error('Subscription error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setSubError(errorMessage);
+      alert(`Subscription checkout failed: ${errorMessage}`);
+    } finally {
+      setSubLoading(false);
     }
   };
 
@@ -233,6 +275,11 @@ const Dashboard = () => {
             </div>
 
             <div className="flex gap-4">
+              {subError && (
+                <div className="px-4 py-2 bg-red-500/20 border border-red-400/30 rounded-xl text-red-400 text-sm">
+                  {subError}
+                </div>
+              )}
               {isPremium ? (
                 <div className="flex items-center gap-3 px-6 py-3 bg-emerald-500/20 border border-emerald-400/30 rounded-2xl">
                   <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>

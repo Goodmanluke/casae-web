@@ -1,10 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
-)
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,18 +9,24 @@ export default async function handler(
   }
 
   try {
-    const { data, error } = await supabase
-      .from('subscription_plans')
-      .select('*')
-      .eq('is_active', true)
-      .order('price', { ascending: true })
+    // Return a hardcoded plan for now - we'll make this dynamic later
+    const plans = [
+      {
+        id: 'premium-monthly',
+        name: 'Premium Plan',
+        stripe_price_id: process.env.STRIPE_PRICE_ID_PREMIUM || 'price_default',
+        price: 19.99,
+        interval: 'month',
+        features: {
+          cma_limit: 'unlimited',
+          pdf_downloads: 'unlimited',
+          priority_support: true
+        },
+        is_active: true
+      }
+    ]
 
-    if (error) {
-      console.error('Error fetching subscription plans:', error)
-      return res.status(500).json({ error: 'Failed to fetch subscription plans' })
-    }
-
-    res.status(200).json(data || [])
+    res.status(200).json(plans)
   } catch (error) {
     console.error('Error in subscription plans API:', error)
     res.status(500).json({ error: 'Internal server error' })
