@@ -122,48 +122,17 @@ export default function Properties() {
     if (!supabase) return;
     
     try {
-      // Debug: Check current session and user
-      const { data: sessionData } = await supabase.auth.getSession();
-      const uid = sessionData.session?.user?.id;
-      console.log('Current user ID:', uid);
-      console.log('Property to delete:', propertyToDelete);
-      
       if (deleteMode === "single" && propertyToDelete) {
-        console.log('Attempting to delete property with ID:', propertyToDelete.id);
-        
-        // First, let's verify the property exists and we can see it
-        const { data: checkData, error: checkError } = await supabase
-          .from('properties')
-          .select('*')
-          .eq('id', propertyToDelete.id)
-          .single();
-        
-        if (checkError) {
-          console.error('Error checking property:', checkError);
-          alert('Property not found or access denied');
-          return;
-        }
-        
-        console.log('Property found:', checkData);
-        
-        // Now attempt to delete
-        const { data: deleteData, error } = await supabase
+        const { error } = await supabase
           .from('properties')
           .delete()
-          .eq('id', propertyToDelete.id)
-          .select(); // Add .select() to see what was deleted
+          .eq('id', propertyToDelete.id);
         
-        console.log('Delete result:', { data: deleteData, error });
-        
-        if (error) {
-          console.error('Error deleting property:', error);
-          alert(`Failed to delete property: ${error.message}`);
-          return;
-        }
-        
-        console.log('Property deleted successfully:', deleteData);
+        if (error) throw error;
         
         // Refresh properties list
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user?.id;
         if (uid) {
           const { data } = await supabase
             .from('properties')
@@ -172,29 +141,17 @@ export default function Properties() {
             .limit(50);
           setProperties(data || []);
         }
-        
-        setShowDeleteModal(false);
-        setPropertyToDelete(null);
       } else if (deleteMode === "multiple" && selectedProperties.length > 0) {
-        console.log('Attempting to delete multiple properties:', selectedProperties);
-        
-        const { data: deleteData, error } = await supabase
+        const { error } = await supabase
           .from('properties')
           .delete()
-          .in('id', selectedProperties)
-          .select(); // Add .select() to see what was deleted
+          .in('id', selectedProperties);
         
-        console.log('Multiple delete result:', { data: deleteData, error });
-        
-        if (error) {
-          console.error('Error deleting properties:', error);
-          alert(`Failed to delete properties: ${error.message}`);
-          return;
-        }
-        
-        console.log('Properties deleted successfully:', deleteData);
+        if (error) throw error;
         
         // Refresh properties list
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user?.id;
         if (uid) {
           const { data } = await supabase
             .from('properties')
@@ -206,8 +163,10 @@ export default function Properties() {
         
         // Clear selection
         setSelectedProperties([]);
-        setShowDeleteModal(false);
       }
+      
+      setShowDeleteModal(false);
+      setPropertyToDelete(null);
     } catch (error) {
       console.error('Error deleting property:', error);
       alert('Failed to delete property');
