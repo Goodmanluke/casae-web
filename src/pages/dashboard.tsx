@@ -54,7 +54,7 @@ const Dashboard = () => {
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
-      
+
       if (error) {
         console.error('Error fetching saved properties:', error);
         setSavedProperties([]);
@@ -96,8 +96,8 @@ const Dashboard = () => {
 
   // Toggle property selection
   const togglePropertySelection = (propertyId: string) => {
-    setSelectedProperties(prev => 
-      prev.includes(propertyId) 
+    setSelectedProperties(prev =>
+      prev.includes(propertyId)
         ? prev.filter(id => id !== propertyId)
         : [...prev, propertyId]
     );
@@ -117,14 +117,14 @@ const Dashboard = () => {
   // Confirm delete property
   const confirmDeleteProperty = async () => {
     if (!supabase) return;
-    
+
     try {
       if (deleteMode === "single" && propertyToDelete) {
         const { error } = await supabase
           .from('properties')
           .delete()
           .eq('id', propertyToDelete.id);
-        
+
         if (error) {
           console.error('Error deleting property:', error);
           alert('Failed to delete property');
@@ -139,7 +139,7 @@ const Dashboard = () => {
           .from('properties')
           .delete()
           .in('id', selectedProperties);
-        
+
         if (error) {
           console.error('Error deleting properties:', error);
           alert('Failed to delete properties');
@@ -204,7 +204,7 @@ const Dashboard = () => {
         <div className="absolute top-20 left-20 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-40 right-32 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
         <div className="absolute bottom-32 left-1/3 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-2000"></div>
-        
+
         {/* Grid pattern */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:60px_60px]"></div>
       </div>
@@ -213,7 +213,7 @@ const Dashboard = () => {
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Navigation */}
         <Navigation />
-        
+
         {/* Page Header */}
         <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
@@ -227,15 +227,15 @@ const Dashboard = () => {
                 </p>
               )}
             </div>
-            
+
             <div className="flex gap-4">
-        <button
-          onClick={handleSubscribe}
+              <button
+                onClick={handleSubscribe}
                 className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg"
-        >
-          Subscribe
-        </button>
-      </div>
+              >
+                Subscribe
+              </button>
+            </div>
           </div>
         </div>
 
@@ -252,8 +252,8 @@ const Dashboard = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-white">Saved Properties</h2>
               </div>
-              
-                            {savedProperties.length === 0 ? (
+
+              {savedProperties.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
                     <svg className="w-10 h-10 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -286,7 +286,7 @@ const Dashboard = () => {
                       </button>
                     </div>
                   )}
-                  
+
                   <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-2xl overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full">
@@ -334,19 +334,19 @@ const Dashboard = () => {
                               </td>
                               <td className="px-6 py-4">
                                 <div className="flex gap-2">
-                                  <button 
+                                  <button
                                     onClick={() => handleViewProperty(property)}
                                     className="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-sm rounded-lg transition-colors"
                                   >
                                     View
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => handleEditProperty(property)}
                                     className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors"
                                   >
                                     Edit
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => handleDeleteProperty(property)}
                                     className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-sm rounded-lg transition-colors"
                                   >
@@ -361,8 +361,8 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-          )}
-        </div>
+              )}
+            </div>
 
             {/* Market Insights */}
             <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
@@ -374,16 +374,16 @@ const Dashboard = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-white">Market Insights</h2>
               </div>
-              
+
               <div className="space-y-6">
                 <div className="bg-gradient-to-r from-purple-500/20 to-pink-600/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-400/30">
                   <h3 className="text-lg font-semibold text-white mb-2">Coming Soon</h3>
                   <p className="text-white/70 text-sm leading-relaxed">
-                    Future enhancements will display interactive charts and real-time statistics about your local market, 
+                    Future enhancements will display interactive charts and real-time statistics about your local market,
                     including median price per square foot, inventory trends, and market velocity indicators.
-          </p>
-        </div>
-                
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
                     <div className="text-2xl font-bold text-cyan-400">24.5%</div>
@@ -394,7 +394,7 @@ const Dashboard = () => {
                     <div className="text-white/60 text-sm">Days on Market</div>
                   </div>
                 </div>
-                
+
                 <div className="text-center">
                   <button className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-medium rounded-xl transition-all duration-300">
                     Learn More
@@ -409,7 +409,7 @@ const Dashboard = () => {
             <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
               <h2 className="text-2xl font-bold text-white mb-6">Quick Actions</h2>
               <div className="grid gap-6 md:grid-cols-3">
-                <button 
+                <button
                   onClick={() => router.push('/cma')}
                   className="group bg-gradient-to-r from-cyan-500/20 to-blue-600/20 hover:from-cyan-500/30 hover:to-blue-600/30 backdrop-blur-sm rounded-2xl p-6 border border-cyan-400/30 transition-all duration-300 transform hover:scale-105"
                 >
@@ -421,8 +421,8 @@ const Dashboard = () => {
                   <h3 className="text-lg font-semibold text-white mb-2">Start New CMA</h3>
                   <p className="text-white/60 text-sm">Create a comprehensive market analysis</p>
                 </button>
-                
-                <button 
+
+                <button
                   onClick={() => router.push('/properties')}
                   className="group bg-gradient-to-r from-purple-500/20 to-pink-600/20 hover:from-purple-500/30 hover:to-pink-600/30 backdrop-blur-sm rounded-2xl p-6 border border-purple-400/30 transition-all duration-300 transform hover:scale-105"
                 >
@@ -434,8 +434,8 @@ const Dashboard = () => {
                   <h3 className="text-lg font-semibold text-white mb-2">Browse Properties</h3>
                   <p className="text-white/60 text-sm">View your property database</p>
                 </button>
-                
-                <button 
+
+                <button
                   onClick={handleSubscribe}
                   className="group bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 backdrop-blur-sm rounded-2xl p-6 border border-emerald-400/30 transition-all duration-300 transform hover:scale-105"
                 >
@@ -467,7 +467,7 @@ const Dashboard = () => {
                 {deleteMode === "single" ? "Delete Property" : "Delete Properties"}
               </h3>
               <p className="text-white/60 mb-6">
-                {deleteMode === "single" 
+                {deleteMode === "single"
                   ? `Are you sure you want to delete "${propertyToDelete?.address}"? This action cannot be undone.`
                   : `Are you sure you want to delete ${selectedProperties.length} selected properties? This action cannot be undone.`
                 }
