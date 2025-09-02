@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Navigation from '../components/Navigation';
+import { useSubscription } from '../hooks/useSubscription';
 
 /**
  * Enhanced dashboard page with stunning modern design.
@@ -21,6 +22,10 @@ const Dashboard = () => {
   const [propertyToDelete, setPropertyToDelete] = useState<any>(null);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [deleteMode, setDeleteMode] = useState<"single" | "multiple">("single");
+  
+  // Get user ID for subscription
+  const [userId, setUserId] = useState<string | undefined>();
+  const { subscription, loading: subLoading, isPremium, createCheckoutSession } = useSubscription(userId);
 
   useEffect(() => {
     // Check for an active session. If there is no session, redirect to login.
@@ -37,10 +42,11 @@ const Dashboard = () => {
         router.replace('/login');
         return;
       }
-      setUserEmail(session.user?.email ?? null);
-      // After verifying the session, load saved properties
-      await fetchSavedProperties(session.user?.id ?? '');
-      setLoading(false);
+              setUserEmail(session.user?.email ?? null);
+        setUserId(session.user?.id);
+        // After verifying the session, load saved properties
+        await fetchSavedProperties(session.user?.id ?? '');
+        setLoading(false);
     };
     fetchSession();
   }, [router]);
@@ -170,14 +176,12 @@ const Dashboard = () => {
   // Start Stripe checkout for subscription
   const handleSubscribe = async () => {
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-      });
-      const data = await res.json();
-      if (data?.url) {
-        window.location.href = data.url;
+      // Get the first available plan (Premium plan)
+      const plans = await fetch('/api/subscription-plans').then(res => res.json());
+      if (plans.length > 0) {
+        await createCheckoutSession(plans[0].id);
       } else {
-        alert('Subscription checkout failed.');
+        alert('No subscription plans available.');
       }
     } catch (err) {
       console.error(err);
@@ -229,12 +233,20 @@ const Dashboard = () => {
             </div>
 
             <div className="flex gap-4">
-              <button
-                onClick={handleSubscribe}
-                className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg"
-              >
-                Subscribe
-              </button>
+              {isPremium ? (
+                <div className="flex items-center gap-3 px-6 py-3 bg-emerald-500/20 border border-emerald-400/30 rounded-2xl">
+                  <div className="w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+                  <span className="text-emerald-400 font-medium">Premium Active</span>
+                </div>
+              ) : (
+                <button
+                  onClick={handleSubscribe}
+                  disabled={subLoading}
+                  className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {subLoading ? 'Loading...' : 'Subscribe'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -435,18 +447,31 @@ const Dashboard = () => {
                   <p className="text-white/60 text-sm">View your property database</p>
                 </button>
 
-                <button
-                  onClick={handleSubscribe}
-                  className="group bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 backdrop-blur-sm rounded-2xl p-6 border border-emerald-400/30 transition-all duration-300 transform hover:scale-105"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
+                {isPremium ? (
+                  <div className="group bg-gradient-to-r from-emerald-500/20 to-teal-600/20 backdrop-blur-sm rounded-2xl p-6 border border-emerald-400/30">
+                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Premium Active</h3>
+                    <p className="text-white/60 text-sm">You have access to all features</p>
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Upgrade Plan</h3>
-                  <p className="text-white/60 text-sm">Unlock premium features</p>
-                </button>
+                ) : (
+                  <button
+                    onClick={handleSubscribe}
+                    disabled={subLoading}
+                    className="group bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 backdrop-blur-sm rounded-2xl p-6 border border-emerald-400/30 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Upgrade Plan</h3>
+                    <p className="text-white/60 text-sm">Unlock premium features</p>
+                  </button>
+                )}
               </div>
             </div>
           </div>

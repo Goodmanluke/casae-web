@@ -1,0 +1,101 @@
+import { useState, useEffect } from 'react'
+import { supabase, getUserSubscription, UserSubscription } from '../lib/supabase'
+
+export function useSubscription(userId: string | undefined) {
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!userId) {
+      setSubscription(null)
+      setLoading(false)
+      return
+    }
+
+    loadSubscription()
+  }, [userId])
+
+  const loadSubscription = async () => {
+    if (!userId) return
+    
+    try {
+      setLoading(true)
+      const sub = await getUserSubscription(userId)
+      setSubscription(sub)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load subscription')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createCheckoutSession = async (planId: string) => {
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          planId,
+          successUrl: `${window.location.origin}/dashboard?success=true`,
+          cancelUrl: `${window.location.origin}/dashboard?canceled=true`,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session')
+      }
+
+      const { url } = await response.json()
+      
+      // Redirect to Stripe Checkout
+      window.location.href = url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create checkout session')
+    }
+  }
+
+  const cancelSubscription = async () => {
+    if (!subscription?.stripe_subscription_id) return
+
+    try {
+      const response = await fetch('/api/cancel-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId: subscription.stripe_subscription_id,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to cancel subscription')
+      }
+
+      // Reload subscription data
+      await loadSubscription()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel subscription')
+    }
+  }
+
+  const isPremium = subscription?.status === 'active'
+  const isTrialing = subscription?.status === 'trialing'
+  const isPastDue = subscription?.status === 'past_due'
+
+  return {
+    subscription,
+    loading,
+    error,
+    isPremium,
+    isTrialing,
+    isPastDue,
+    createCheckoutSession,
+    cancelSubscription,
+    refresh: loadSubscription,
+  }
+} 

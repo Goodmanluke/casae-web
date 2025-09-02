@@ -142,6 +142,9 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Supabase migrations
+supabase_migrations.sql
+
 # Backup files
 *.bak
 *.backup
