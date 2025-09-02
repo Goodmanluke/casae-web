@@ -112,18 +112,18 @@ export default function Navigation() {
               </button>
               
               {/* User Email Tooltip */}
-              <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-black/80 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
+              <div className="absolute bottom-full right-0 mb-2 px-3 py-1 bg-black/80 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none max-w-[260px] md:max-w-[360px] break-all">
                 {userEmail}
               </div>
               
               {/* Dropdown Menu */}
               {showUserDropdown && (
                 <div 
-                  className="absolute top-full right-0 mt-2 w-48 bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 shadow-2xl z-50"
+                  className="absolute top-full right-0 mt-2 w-[260px] md:w-[360px] bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 shadow-2xl z-50"
                   onMouseLeave={() => setShowUserDropdown(false)}
                 >
                   <div className="p-2">
-                    <div className="px-3 py-2 text-white/60 text-sm border-b border-white/10">
+                    <div className="px-3 py-2 text-white/60 text-sm border-b border-white/10 truncate">
                       {userEmail}
                     </div>
                     <button
