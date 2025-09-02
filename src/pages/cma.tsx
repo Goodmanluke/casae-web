@@ -35,7 +35,7 @@ export default function CMA() {
       setAddress(query.address);
       fetchBaseline(query.address);
     }
-    
+
     // Handle tab parameter
     if (typeof query.tab === "string" && ["snapshot", "adjustments", "result"].includes(query.tab)) {
       setTab(query.tab as Tab);
@@ -75,6 +75,15 @@ export default function CMA() {
     setLoading(true);
     setError(null);
     try {
+      console.log("[CMA] Applying adjustments:", {
+        cma_run_id: baselineData.cma_run_id,
+        condition,
+        renovations,
+        add_beds: addBeds,
+        add_baths: addBaths,
+        add_sqft: addSqft,
+      });
+      
       const data = await cmaAdjust({
         cma_run_id: baselineData.cma_run_id,
         condition,
@@ -83,6 +92,8 @@ export default function CMA() {
         add_baths: addBaths,
         add_sqft: addSqft,
       });
+      
+      console.log("[CMA] Received adjusted data:", data);
       setAdjustedData(data);
       setTab("result");
     } catch (err: any) {
@@ -164,8 +175,8 @@ export default function CMA() {
       {/* Property Photo */}
       <div className="w-full h-48 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-xl mb-4 overflow-hidden">
         {comp.photo_url ? (
-          <img 
-            src={comp.photo_url} 
+          <img
+            src={comp.photo_url}
             alt={comp.address}
             className="w-full h-full object-cover"
             onError={(e) => {
@@ -193,7 +204,7 @@ export default function CMA() {
             </div>
           )}
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-black/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
             <div className="text-2xl font-bold text-emerald-400">
@@ -201,7 +212,7 @@ export default function CMA() {
             </div>
             <div className="text-white/60 text-sm">Price</div>
           </div>
-          
+
           <div className="bg-black/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
             <div className="text-2xl font-bold text-cyan-400">
               {comp.beds || 0}
@@ -209,7 +220,7 @@ export default function CMA() {
             <div className="text-white/60 text-sm">Beds</div>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-3 gap-3 text-center">
           <div className="bg-black/5 backdrop-blur-sm rounded-lg p-2 border border-white/20">
             <div className="text-lg font-semibold text-white">{comp.baths || 0}</div>
@@ -224,7 +235,7 @@ export default function CMA() {
             <div className="text-white/60 text-xs">Year</div>
           </div>
         </div>
-        
+
         {/* Additional details */}
         <div className="space-y-2 text-sm text-white/70">
           {comp.lot_sqft && (
@@ -257,34 +268,34 @@ export default function CMA() {
 
       <div className="relative z-10 min-h-screen flex flex-col">
         <Navigation />
-        
+
         <div className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
           {/* Address input section */}
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-white/20">
             <div className="flex gap-4 items-center">
-        <input
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              fetchBaseline(address);
-            }
-          }}
-          placeholder="Enter subject property address"
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    fetchBaseline(address);
+                  }
+                }}
+                placeholder="Enter subject property address"
                 className="flex-1 bg-white/90 text-gray-800 px-6 py-4 rounded-xl border-0 text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-50"
-        />
-        <button
-          onClick={() => fetchBaseline(address)}
+              />
+              <button
+                onClick={() => fetchBaseline(address)}
                 disabled={loading}
                 className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-        >
+              >
                 {loading ? 'Running...' : 'Run CMA'}
-        </button>
+              </button>
             </div>
-      </div>
+          </div>
 
-      {/* Loading / Error */}
+          {/* Loading / Error */}
           {loading && (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
@@ -297,41 +308,38 @@ export default function CMA() {
             </div>
           )}
 
-      {/* Tabs */}
+          {/* Tabs */}
           {baselineData && (
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-white/20">
               <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setTab("snapshot")}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                    tab === "snapshot" 
-                      ? "bg-cyan-500 text-white shadow-lg" 
+                <button
+                  onClick={() => setTab("snapshot")}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all ${tab === "snapshot"
+                      ? "bg-cyan-500 text-white shadow-lg"
                       : "bg-white/20 text-white hover:bg-white/30"
-                  }`}
-        >
-          Snapshot
-        </button>
-        <button
-          onClick={() => setTab("adjustments")}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                    tab === "adjustments" 
-                      ? "bg-cyan-500 text-white shadow-lg" 
+                    }`}
+                >
+                  Snapshot
+                </button>
+                <button
+                  onClick={() => setTab("adjustments")}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all ${tab === "adjustments"
+                      ? "bg-cyan-500 text-white shadow-lg"
                       : "bg-white/20 text-white hover:bg-white/30"
-                  }`}
-        >
-          Adjustments
-        </button>
-        <button
-          onClick={() => setTab("result")}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                    tab === "result" 
-                      ? "bg-cyan-100 text-gray-800 shadow-lg" 
+                    }`}
+                >
+                  Adjustments
+                </button>
+                <button
+                  onClick={() => setTab("result")}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all ${tab === "result"
+                      ? "bg-cyan-100 text-gray-800 shadow-lg"
                       : "bg-white/20 text-white hover:bg-white/30"
-                  }`}
-        >
-          Result
-        </button>
-      </div>
+                    }`}
+                >
+                  Result
+                </button>
+              </div>
 
               {/* Tab content */}
               {tab === "snapshot" && (
@@ -396,13 +404,13 @@ export default function CMA() {
                   </div>
 
                   <div className="flex justify-center gap-4">
-                    <button 
-                      onClick={downloadPdf} 
+                    <button
+                      onClick={downloadPdf}
                       className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
                     >
-            Download PDF
-          </button>
-                    <button 
+                      Download PDF
+                    </button>
+                    <button
                       onClick={saveProperty}
                       disabled={saving || saved}
                       className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg disabled:opacity-50"
@@ -416,69 +424,69 @@ export default function CMA() {
               {tab === "adjustments" && (
                 <div className="space-y-6">
                   <h3 className="text-xl font-semibold text-white mb-4">Adjust Property</h3>
-                  
+
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
                       <label className="block text-white font-medium mb-3">Condition</label>
-            <select
-              value={condition}
-              onChange={(e) => setCondition(e.target.value)}
+                      <select
+                        value={condition}
+                        onChange={(e) => setCondition(e.target.value)}
                         className="w-full bg-white/90 text-gray-800 p-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            >
-              <option value="Poor">Poor</option>
-              <option value="Fair">Fair</option>
-              <option value="Good">Good</option>
-              <option value="Excellent">Excellent</option>
-            </select>
-          </div>
+                      >
+                        <option value="Poor">Poor</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Good">Good</option>
+                        <option value="Excellent">Excellent</option>
+                      </select>
+                    </div>
 
                     <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
                       <label className="block text-white font-medium mb-3">Renovations</label>
                       <div className="space-y-2">
-            {["Kitchen", "Bath", "Flooring", "Roof"].map((opt) => (
+                        {["Kitchen", "Bath", "Flooring", "Roof"].map((opt) => (
                           <label key={opt} className="flex items-center text-white/90">
-                <input
-                  type="checkbox"
+                            <input
+                              type="checkbox"
                               className="mr-3 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                  checked={renovations.includes(opt.toLowerCase())}
-                  onChange={() => toggleRenovation(opt.toLowerCase())}
-                />
-                {opt}
-              </label>
-            ))}
+                              checked={renovations.includes(opt.toLowerCase())}
+                              onChange={() => toggleRenovation(opt.toLowerCase())}
+                            />
+                            {opt}
+                          </label>
+                        ))}
                       </div>
                     </div>
-          </div>
+                  </div>
 
                   <div className="grid md:grid-cols-3 gap-6">
                     <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
                       <label className="block text-white font-medium mb-3">Add Beds</label>
-              <input
-                type="number"
-                value={addBeds}
-                onChange={(e) => setAddBeds(Number(e.target.value))}
+                      <input
+                        type="number"
+                        value={addBeds}
+                        onChange={(e) => setAddBeds(Number(e.target.value))}
                         className="w-full bg-white/90 text-gray-800 p-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              />
-            </div>
+                      />
+                    </div>
                     <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
                       <label className="block text-white font-medium mb-3">Add Baths</label>
-              <input
-                type="number"
-                value={addBaths}
-                onChange={(e) => setAddBaths(Number(e.target.value))}
+                      <input
+                        type="number"
+                        value={addBaths}
+                        onChange={(e) => setAddBaths(Number(e.target.value))}
                         className="w-full bg-white/90 text-gray-800 p-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              />
-            </div>
+                      />
+                    </div>
                     <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30">
                       <label className="block text-white font-medium mb-3">Add Sqft</label>
-              <input
-                type="number"
-                value={addSqft}
-                onChange={(e) => setAddSqft(Number(e.target.value))}
+                      <input
+                        type="number"
+                        value={addSqft}
+                        onChange={(e) => setAddSqft(Number(e.target.value))}
                         className="w-full bg-white/90 text-gray-800 p-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              />
-            </div>
-          </div>
+                      />
+                    </div>
+                  </div>
 
                   {/* Adjustment Summary */}
                   {getAdjustmentChips().length > 0 && (
@@ -488,12 +496,11 @@ export default function CMA() {
                         {getAdjustmentChips().map((chip, idx) => (
                           <span
                             key={idx}
-                            className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              chip.color === 'blue' ? 'bg-blue-500/20 text-blue-300' :
-                              chip.color === 'green' ? 'bg-green-500/20 text-green-300' :
-                              chip.color === 'purple' ? 'bg-purple-500/20 text-purple-300' :
-                              'bg-orange-500/20 text-orange-300'
-                            }`}
+                            className={`px-3 py-1 rounded-full text-sm font-medium ${chip.color === 'blue' ? 'bg-blue-500/20 text-blue-300' :
+                                chip.color === 'green' ? 'bg-green-500/20 text-green-300' :
+                                  chip.color === 'purple' ? 'bg-purple-500/20 text-purple-300' :
+                                    'bg-orange-500/20 text-orange-300'
+                              }`}
                           >
                             {chip.label}
                           </span>
@@ -503,17 +510,17 @@ export default function CMA() {
                   )}
 
                   <div className="flex justify-center">
-                    <button 
-                      onClick={applyAdjustments} 
+                    <button
+                      onClick={applyAdjustments}
                       className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
                     >
-            Apply Adjustments
-          </button>
+                      Apply Adjustments
+                    </button>
                   </div>
                 </div>
-      )}
+              )}
 
-      {tab === "result" && adjustedData && (
+              {tab === "result" && adjustedData && (
                 <div className="space-y-6">
                   {/* Side-by-side comparison */}
                   <div className="grid md:grid-cols-2 gap-6">
@@ -524,7 +531,7 @@ export default function CMA() {
                       </div>
                       <p className="text-cyan-200 mt-2">Original Estimate</p>
                     </div>
-                    
+
                     <div className="bg-gradient-to-br from-green-500/20 to-emerald-600/20 backdrop-blur-sm rounded-xl p-6 border border-green-400/30">
                       <h3 className="text-xl font-semibold text-white mb-4">Adjusted Value</h3>
                       <div className="text-4xl font-bold text-green-300">
@@ -537,9 +544,8 @@ export default function CMA() {
                   {/* Value Change */}
                   <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 border border-white/30 text-center">
                     <h4 className="text-white font-medium mb-2">Value Change</h4>
-                    <div className={`text-2xl font-bold ${
-                      adjustedData.estimate > baselineData.estimate ? 'text-green-400' : 'text-red-400'
-                    }`}>
+                    <div className={`text-2xl font-bold ${adjustedData.estimate > baselineData.estimate ? 'text-green-400' : 'text-red-400'
+                      }`}>
                       {adjustedData.estimate > baselineData.estimate ? '+' : ''}
                       ${(adjustedData.estimate - baselineData.estimate).toLocaleString()}
                       <span className="text-lg text-white/60 ml-2">
@@ -558,23 +564,23 @@ export default function CMA() {
                         </div>
                       ))}
                     </div>
-          </div>
+                  </div>
 
                   <div className="flex justify-center">
-                    <button 
-                      onClick={downloadPdf} 
+                    <button
+                      onClick={downloadPdf}
                       className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
                     >
                       Download Adjusted PDF
-          </button>
+                    </button>
                   </div>
                 </div>
               )}
             </div>
-      )}
+          )}
 
           {/* Initial state */}
-      {!baselineData && !loading && !error && (
+          {!baselineData && !loading && !error && (
             <div className="text-center py-16">
               <div className="text-white/60 text-xl">
                 Enter an address above, then click <strong className="text-white">Run CMA</strong>.
