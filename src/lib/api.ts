@@ -10,7 +10,11 @@ import type {
 // Re-export types so other files (e.g. cma.tsx) can import them from this module.
 export type { CMAInput, AdjustmentInput, Comp, CMAResponse };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE ||
+  (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+    ? "https://api.casae.app"
+    : "http://localhost:8000");
 
 /**
  * Build a query string from a plain object.
@@ -109,13 +113,29 @@ export async function cmaSummary(body: unknown): Promise<{ summary: string }> {
 }
 
 /**
- * Retrieve a PDF link for a CMA run (GET /pdfx).
+ * Download a PDF report for a CMA run (GET /pdfx).
  */
-export async function cmaPdf(cma_run_id: string): Promise<{ url: string }> {
+export async function cmaPdf(cma_run_id: string): Promise<void> {
   const qs = encodeURIComponent(cma_run_id);
-  return request<{ url: string }>(`${API_BASE}/pdfx?cma_run_id=${qs}`, {
-    method: "GET",
-  });
+  const url = `${API_BASE}/pdfx?cma_run_id=${qs}`;
+
+  // Prefer opening in a new tab first – most reliable across CSP/CORS
+  const popup = window.open(url, '_blank');
+  if (popup) return;
+
+  // Fallback to blob download if popups are blocked
+  const response = await fetch(url, { method: 'GET', mode: 'cors' });
+  if (!response.ok) throw new Error(`Failed to generate PDF: ${response.status}`);
+
+  const pdfBlob = await response.blob();
+  const objectUrl = window.URL.createObjectURL(pdfBlob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = `cma_report_${cma_run_id}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(objectUrl);
 }
 
 /**
