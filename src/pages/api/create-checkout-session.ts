@@ -2,13 +2,18 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
+// Check for required environment variables
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY || !process.env.STRIPE_SECRET_KEY) {
+  throw new Error('Missing required environment variables: SUPABASE_URL, SUPABASE_ANON_KEY, or STRIPE_SECRET_KEY')
+}
+
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
 )
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2022-11-15',
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2022-11-15', // Keep the version that matches your Stripe package
 })
 
 export default async function handler(

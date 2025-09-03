@@ -29,8 +29,7 @@ export default async function handler(
           price,
           currency,
           interval,
-          interval_count,
-          trial_period_days
+          interval_count
         ),
         plan_features (
           feature_key,
@@ -62,24 +61,23 @@ export default async function handler(
         } else if (feature.feature_type === 'number') {
           acc[feature.feature_key] = parseInt(feature.feature_value)
         } else {
-          acc[feature.feature_key] = feature.feature_value
+          acc[feature.feature_value] = feature.feature_value
         }
         return acc
       }, {} as Record<string, any>)
 
-              return {
-          id: plan.id,
-          name: plan.name,
-          description: plan.description,
-          stripe_price_id: pricing?.stripe_price_id,
-          price: pricing?.price,
-          currency: pricing?.currency || 'USD',
-          interval: pricing?.interval,
-          interval_count: pricing?.interval_count,
-          trial_period_days: pricing?.trial_period_days,
-          features: featuresObj,
-          is_active: true // Since we're already filtering for active plans
-        }
+      return {
+        id: plan.id,
+        name: plan.name,
+        description: plan.description,
+        stripe_price_id: pricing?.stripe_price_id,
+        price: pricing?.price,
+        currency: pricing?.currency || 'USD',
+        interval: pricing?.interval,
+        interval_count: pricing?.interval_count,
+        features: featuresObj,
+        is_active: true // Since we're already filtering for active plans
+      }
     }) || []
 
     res.status(200).json(transformedPlans)

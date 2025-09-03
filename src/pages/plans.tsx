@@ -129,7 +129,7 @@ const PlansPage = () => {
                 </div>
 
                 <div className="text-center mb-8">
-                  <div className="text-4xl font-bold text-white mb-2">$19.99</div>
+                  <div className="text-4xl font-bold text-white mb-2">$49.99</div>
                   <div className="text-white/60">per month</div>
                 </div>
 
