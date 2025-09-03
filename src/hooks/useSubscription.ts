@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase, getUserSubscription, UserSubscription } from '../lib/supabase'
+import { supabase, UserSubscription } from '../lib/supabase'
 
 export function useSubscription(userId: string | undefined) {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null)
@@ -21,7 +21,18 @@ export function useSubscription(userId: string | undefined) {
     
     try {
       setLoading(true)
-      const sub = await getUserSubscription(userId)
+      const { data, error } = await supabase
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single()
+
+      if (error && error.code !== 'PGRST116') {
+        throw error
+      }
+
+      const sub = data
       setSubscription(sub)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load subscription')

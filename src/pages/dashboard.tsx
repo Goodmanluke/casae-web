@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 import Navigation from '../components/Navigation';
 import { useSubscription } from '../hooks/useSubscription';
 
