@@ -103,8 +103,7 @@ export default async function handler(
       metadata: {
         userId,
         planId,
-      },
-      customer_creation: 'always',
+      }
     })
 
     console.log('Checkout session created successfully:', session.id)
