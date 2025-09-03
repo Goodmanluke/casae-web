@@ -1,20 +1,32 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
+// Check for required environment variables
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  console.error('Missing environment variables:', {
+    SUPABASE_URL: !!process.env.SUPABASE_URL,
+    SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY
+  })
+}
+
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_ANON_KEY || ''
 )
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  console.log('subscription-plans API called with method:', req.method)
+  
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
+    console.log('Fetching plans from Supabase...')
+    
     // Fetch plans with pricing and features from database
     const { data: plans, error: plansError } = await supabase
       .from('plans')
@@ -41,6 +53,8 @@ export default async function handler(
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
 
+    console.log('Supabase response:', { plans, plansError })
+
     if (plansError) {
       console.error('Error fetching plans:', plansError)
       return res.status(500).json({ 
@@ -61,7 +75,7 @@ export default async function handler(
         } else if (feature.feature_type === 'number') {
           acc[feature.feature_key] = parseInt(feature.feature_value)
         } else {
-          acc[feature.feature_value] = feature.feature_value
+          acc[feature.feature_key] = feature.feature_value
         }
         return acc
       }, {} as Record<string, any>)
@@ -80,9 +94,13 @@ export default async function handler(
       }
     }) || []
 
+    console.log('Transformed plans:', transformedPlans)
     res.status(200).json(transformedPlans)
   } catch (error) {
     console.error('Error in subscription plans API:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    })
   }
 } 

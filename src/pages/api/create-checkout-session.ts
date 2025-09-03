@@ -20,7 +20,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  console.log('create-checkout-session API called with method:', req.method)
+  console.log('Request body:', req.body)
+  
   if (req.method !== 'POST') {
+    console.log('Method not allowed, returning 405')
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
@@ -28,11 +32,14 @@ export default async function handler(
     const { userId, planId, successUrl, cancelUrl } = req.body
 
     if (!userId || !planId || !successUrl || !cancelUrl) {
+      console.log('Missing required fields:', { userId, planId, successUrl, cancelUrl })
       return res.status(400).json({ 
         error: 'Missing required fields: userId, planId, successUrl, cancelUrl' 
       })
     }
 
+    console.log('Fetching plan data from Supabase...')
+    
     // Get the Stripe price ID from the database based on planId
     const { data: planData, error: planError } = await supabase
       .from('plans')
@@ -47,6 +54,8 @@ export default async function handler(
       .eq('id', planId)
       .eq('is_active', true)
       .single()
+
+    console.log('Supabase plan response:', { planData, planError })
 
     if (planError || !planData) {
       console.error('Error fetching plan:', planError)
