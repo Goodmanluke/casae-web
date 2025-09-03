@@ -265,11 +265,11 @@ export default function Properties() {
                   Sort By
                 </label>
                 <div className="relative">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
                     className="w-full appearance-none bg-slate-800/80 border border-white/40 text-white px-4 py-3 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all duration-300"
-                  >
+                >
                   <option value="raw_price">Price</option>
                   <option value="beds">Bedrooms</option>
                   <option value="baths">Bathrooms</option>
@@ -288,14 +288,14 @@ export default function Properties() {
                   Order
                 </label>
                 <div className="relative">
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
                     className="w-full appearance-none bg-slate-800/80 border border-white/40 text-white px-4 py-3 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all duration-300"
-                  >
-                    <option value="desc">High to Low</option>
-                    <option value="asc">Low to High</option>
-                  </select>
+                >
+                  <option value="desc">High to Low</option>
+                  <option value="asc">Low to High</option>
+                </select>
                   <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
                     <svg className="w-4 h-4 text-white/70" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd"/></svg>
                   </div>

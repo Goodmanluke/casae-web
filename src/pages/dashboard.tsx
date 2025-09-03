@@ -21,7 +21,7 @@ const Dashboard = () => {
   const [propertyToDelete, setPropertyToDelete] = useState<any>(null);
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
   const [deleteMode, setDeleteMode] = useState<"single" | "multiple">("single");
-  
+
   // Get user ID for subscription
   const [userId, setUserId] = useState<string | undefined>();
 
@@ -40,11 +40,11 @@ const Dashboard = () => {
         router.replace('/login');
         return;
       }
-              setUserEmail(session.user?.email ?? null);
+      setUserEmail(session.user?.email ?? null);
         setUserId(session.user?.id);
-        // After verifying the session, load saved properties
-        await fetchSavedProperties(session.user?.id ?? '');
-        setLoading(false);
+      // After verifying the session, load saved properties
+      await fetchSavedProperties(session.user?.id ?? '');
+      setLoading(false);
     };
     fetchSession();
   }, [router]);
