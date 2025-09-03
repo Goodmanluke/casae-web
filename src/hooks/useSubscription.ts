@@ -21,6 +21,21 @@ export function useSubscription(userId: string | undefined) {
     
     try {
       setLoading(true)
+      console.log('Loading subscription for user:', userId)
+      console.log('Environment check:', {
+        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      })
+      // First check if user is authenticated
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+      
+      if (sessionError || !session) {
+        console.error('No authenticated session:', sessionError)
+        throw new Error('User not authenticated')
+      }
+
+      console.log('User authenticated, loading subscription...')
+
       const { data, error } = await supabase
         .from('user_subscriptions')
         .select('*')
