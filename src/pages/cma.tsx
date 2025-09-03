@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { cmaBaseline, cmaAdjust, cmaPdf, getRentEstimate } from "../lib/api";
 import type { CMAResponse, Comp } from "../lib/api";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "../lib/supabase";
 import Navigation from "../components/Navigation";
 
 type Tab = "snapshot" | "adjustments" | "result";

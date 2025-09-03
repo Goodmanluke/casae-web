@@ -1,7 +1,7 @@
 // pages/login.tsx
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabase';
 import { logoSrc } from '../lib/logo';
 
 export default function Login() {

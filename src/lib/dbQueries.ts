@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase } from './supabase';
 
 // Insert a saved search for a user
 export async function saveSearch(userId: string, params: object) {
