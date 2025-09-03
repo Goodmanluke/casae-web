@@ -1,5 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import Stripe from 'stripe'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!
+)
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2022-11-15',
@@ -22,12 +28,30 @@ export default async function handler(
       })
     }
 
-    // Get the Stripe price ID from environment
-    const stripePriceId = process.env.STRIPE_PRICE_ID_PREMIUM
+    // Get the Stripe price ID from the database based on planId
+    const { data: planData, error: planError } = await supabase
+      .from('plans')
+      .select(`
+        id,
+        plan_pricing!inner (
+          stripe_price_id,
+          price,
+          interval
+        )
+      `)
+      .eq('id', planId)
+      .eq('is_active', true)
+      .single()
 
+    if (planError || !planData) {
+      console.error('Error fetching plan:', planError)
+      return res.status(400).json({ error: 'Invalid plan ID' })
+    }
+
+    const stripePriceId = planData.plan_pricing[0]?.stripe_price_id
     if (!stripePriceId) {
-      console.error('STRIPE_PRICE_ID_PREMIUM not set in environment variables')
-      return res.status(500).json({ error: 'Stripe price ID not configured' })
+      console.error('No Stripe price ID found for plan:', planId)
+      return res.status(500).json({ error: 'Stripe price ID not configured for this plan' })
     }
 
     console.log('Creating checkout session with:', {

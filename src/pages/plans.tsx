@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Navigation from '../components/Navigation';
@@ -7,6 +7,46 @@ const PlansPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [planFeatures, setPlanFeatures] = useState<string[]>([
+    'Unlimited CMA Reports',
+    'Unlimited PDF Downloads', 
+    'Advanced Adjustments',
+    'Priority Support',
+    'AI-Powered Insights'
+  ]);
+  const [planData, setPlanData] = useState<any>(null);
+
+  // Fetch plan data on component mount
+  useEffect(() => {
+    const fetchPlanData = async () => {
+      try {
+        const response = await fetch('/api/subscription-plans');
+        if (response.ok) {
+          const plans = await response.json();
+          if (plans.length > 0) {
+            const premiumPlan = plans.find((p: any) => p.name === 'Premium Plan');
+            if (premiumPlan) {
+              setPlanData(premiumPlan);
+              // Convert features object to array of strings
+              const features = Object.entries(premiumPlan.features || {}).map(([key, value]) => {
+                if (typeof value === 'boolean' && value) {
+                  return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                } else if (typeof value === 'string') {
+                  return `${value} ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+                }
+                return `${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
+              });
+              setPlanFeatures(features);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching plan data:', err);
+      }
+    };
+
+    fetchPlanData();
+  }, []);
 
   const handleSubscribe = async () => {
     try {
@@ -24,7 +64,7 @@ const PlansPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: session.user.id,
-          planId: 'premium-monthly',
+          planId: planData?.id || 'premium-monthly',
           successUrl: `${window.location.origin}/dashboard?success=true`,
           cancelUrl: `${window.location.origin}/plans?canceled=true`,
         }),
@@ -94,50 +134,16 @@ const PlansPage = () => {
                 </div>
 
                 <div className="space-y-4 mb-8">
-                  <div className="flex items-center">
-                    <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mr-3">
-                      <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
+                  {planFeatures.map((feature, index) => (
+                    <div key={index} className="flex items-center">
+                      <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mr-3">
+                        <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                      <span className="text-white">{feature}</span>
                     </div>
-                    <span className="text-white">Unlimited CMA Reports</span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mr-3">
-                      <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-white">Unlimited PDF Downloads</span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mr-3">
-                      <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-white">Advanced Adjustments</span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mr-3">
-                      <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-white">Priority Support</span>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mr-3">
-                      <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-white">AI-Powered Insights</span>
-                  </div>
+                  ))}
                 </div>
 
                 {error && (
