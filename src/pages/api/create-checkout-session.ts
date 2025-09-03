@@ -20,6 +20,17 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Enable CORS for Vercel
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end()
+    return
+  }
+
   console.log('create-checkout-session API called with method:', req.method)
   console.log('Request body:', req.body)
   
