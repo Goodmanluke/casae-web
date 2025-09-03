@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabaseClient';
 import Navigation from '../components/Navigation';
+import { useSubscription } from '../hooks/useSubscription';
 
 /**
  * Enhanced dashboard page with stunning modern design.
@@ -24,6 +25,9 @@ const Dashboard = () => {
 
   // Get user ID for subscription
   const [userId, setUserId] = useState<string | undefined>();
+
+  // Get subscription status
+  const { subscription, loading: subLoading, isPremium, isTrialing, isPastDue } = useSubscription(userId);
 
   useEffect(() => {
     // Check for an active session. If there is no session, redirect to login.
@@ -392,6 +396,63 @@ const Dashboard = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Subscription Status */}
+          <div className="mt-12">
+            <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
+              <h2 className="text-2xl font-bold text-white mb-6">Subscription Status</h2>
+              
+              {subLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mx-auto"></div>
+                  <p className="text-white/60">Loading subscription...</p>
+                </div>
+              ) : isPremium ? (
+                <div className="bg-emerald-900/20 border border-emerald-400/30 rounded-xl p-6">
+                  <div className="flex items-center mb-3">
+                    <div className="w-4 h-4 bg-emerald-400 rounded-full mr-3"></div>
+                    <h3 className="text-xl font-semibold text-emerald-400">Premium Active</h3>
+                  </div>
+                  <p className="text-emerald-200 mb-3">You have access to all premium features!</p>
+                  {subscription && subscription.current_period_end && (
+                    <div className="text-sm text-emerald-300">
+                      <p>Next billing: {new Date(subscription.current_period_end).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                </div>
+              ) : isTrialing ? (
+                <div className="bg-blue-900/20 border border-blue-400/30 rounded-xl p-6">
+                  <div className="flex items-center mb-3">
+                    <div className="w-4 h-4 bg-blue-400 rounded-full mr-3"></div>
+                    <h3 className="text-xl font-semibold text-blue-400">Trial Active</h3>
+                  </div>
+                  <p className="text-blue-200">You're currently in a trial period.</p>
+                </div>
+              ) : isPastDue ? (
+                <div className="bg-red-900/20 border border-red-400/30 rounded-xl p-6">
+                  <div className="flex items-center mb-3">
+                    <div className="w-4 h-4 bg-red-400 rounded-full mr-3"></div>
+                    <h3 className="text-xl font-semibold text-red-400">Payment Past Due</h3>
+                  </div>
+                  <p className="text-red-200">Please update your payment method to continue.</p>
+                </div>
+              ) : (
+                <div className="bg-slate-700/20 border border-slate-400/30 rounded-xl p-6">
+                  <div className="flex items-center mb-3">
+                    <div className="w-4 h-4 bg-slate-400 rounded-full mr-3"></div>
+                    <h3 className="text-xl font-semibold text-slate-400">Free Plan</h3>
+                  </div>
+                  <p className="text-slate-200 mb-4">Upgrade to Premium for full access to all features.</p>
+                  <button
+                    onClick={handleSubscribe}
+                    className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    Upgrade to Premium
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
