@@ -180,6 +180,26 @@ const Dashboard = () => {
     router.push('/plans');
   };
 
+  const calculateDaysRemaining = (endDate: string) => {
+    console.log('Calculating days remaining for:', endDate);
+
+    const end = new Date(endDate);
+    const now = new Date();
+
+    console.log('End date:', end);
+    console.log('Current date:', now);
+    console.log('End date timestamp:', end.getTime());
+    console.log('Current timestamp:', now.getTime());
+
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    console.log('Time difference (ms):', diffTime);
+    console.log('Days difference:', diffDays);
+
+    return diffDays > 0 ? diffDays : 0;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
@@ -211,43 +231,63 @@ const Dashboard = () => {
 
         {/* Premium Badge - Top Right Corner */}
         {isPremium && (
-          <div className="fixed top-4 right-4 z-50">
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-2 rounded-full shadow-2xl border border-emerald-400/30 backdrop-blur-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                <span className="font-semibold text-sm">PREMIUM</span>
-              </div>
+          <div className="max-w-7xl mx-auto px-6 py-4 w-full">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-3 rounded-2xl shadow-2xl border border-emerald-400/30 backdrop-blur-sm inline-flex items-center gap-3">
+              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+              <span className="font-bold text-lg">PREMIUM ACTIVE</span>
+              <div className="w-px h-6 bg-white/30"></div>
+              <span className="text-emerald-100 text-sm">
+                {subscription?.current_period_end
+                  ? `${calculateDaysRemaining(subscription.current_period_end)} days remaining`
+                  : 'Active subscription'
+                }
+              </span>
             </div>
           </div>
         )}
 
-        {/* Page Header */}
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="flex items-center justify-between">
+
+
+        {/* Main content */}
+        <main className="max-w-7xl mx-auto px-6 py-12">
+          <div className="grid gap-8 lg:grid-cols-2 mb-12">
+            {/* Left Side - Dashboard Title */}
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent mb-4">
                 Dashboard
               </h1>
               {userEmail && (
-                <p className="text-white/60 mt-2 text-lg">
+                <p className="text-white/60 text-lg">
                   Welcome back, <span className="text-white font-medium">{userEmail}</span>
                 </p>
               )}
             </div>
 
-            <div className="flex gap-4">
-              <button
-                onClick={handleSubscribe}
-                className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg"
-              >
-                Subscribe
-              </button>
+            {/* Right Side - Subscribe Button */}
+            <div className="flex flex-col items-end">
+              {!isPremium && (
+                <button
+                  onClick={handleSubscribe}
+                  className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg mb-2"
+                >
+                  Subscribe
+                </button>
+              )}
+              {isPremium && subscription?.current_period_end && (
+                <div className="text-right">
+                  <p className="text-emerald-400 font-semibold text-lg">
+                    {calculateDaysRemaining(subscription.current_period_end)} days left
+                  </p>
+                  <p className="text-white/60 text-sm">Premium subscription</p>
+                  {/* Debug info - remove in production */}
+                  <p className="text-white/40 text-xs mt-1">
+                    Ends: {new Date(subscription.current_period_end).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Main content */}
-        <main className="max-w-7xl mx-auto px-6 py-12">
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Saved Properties */}
             <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
@@ -499,33 +539,18 @@ const Dashboard = () => {
                   <p className="text-white/60 text-sm">View your property database</p>
                 </button>
 
-                {/* Conditional Upgrade Plan Button */}
+                {/* Upgrade Plan Button - Always functional */}
                 <button
-                  onClick={isPremium ? undefined : handleSubscribe}
-                  className={`group rounded-2xl p-6 border transition-all duration-300 ${isPremium
-                      ? 'bg-gradient-to-r from-emerald-500/20 to-teal-600/20 border-emerald-400/30 cursor-not-allowed opacity-75'
-                      : 'bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 border-emerald-400/30 transform hover:scale-105'
-                    }`}
-                  disabled={isPremium}
+                  onClick={handleSubscribe}
+                  className="group bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 backdrop-blur-sm rounded-2xl p-6 border border-emerald-400/30 transition-all duration-300 transform hover:scale-105"
                 >
-                  <div className={`w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-300 ${isPremium ? '' : 'group-hover:scale-110'
-                    }`}>
-                    {isPremium ? (
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                      </svg>
-                    )}
+                  <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">
-                    {isPremium ? 'Premium Active' : 'Upgrade Plan'}
-                  </h3>
-                  <p className="text-white/60 text-sm">
-                    {isPremium ? 'You are in Premium mode' : 'Unlock premium features'}
-                  </p>
+                  <h3 className="text-lg font-semibold text-white mb-2">Upgrade Plan</h3>
+                  <p className="text-white/60 text-sm">Unlock premium features</p>
                 </button>
               </div>
             </div>

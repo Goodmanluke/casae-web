@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 import Navigation from '../components/Navigation';
+import { useSubscription } from '../hooks/useSubscription';
 
 const PlansPage = () => {
   const router = useRouter();
@@ -9,6 +10,30 @@ const PlansPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [planFeatures, setPlanFeatures] = useState<string[]>([]);
   const [planData, setPlanData] = useState<any>(null);
+  const [userId, setUserId] = useState<string | undefined>();
+
+  // Get subscription status
+  const { subscription, loading: subLoading, isPremium, isTrialing, isPastDue } = useSubscription(userId);
+
+  // Check for user session
+  useEffect(() => {
+    const fetchSession = async () => {
+      if (!supabase) {
+        router.replace('/login');
+        return;
+      }
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
+      if (error || !session) {
+        router.replace('/login');
+        return;
+      }
+      setUserId(session.user?.id);
+    };
+    fetchSession();
+  }, [router]);
 
   // Fetch plan data on component mount
   useEffect(() => {
@@ -43,40 +68,66 @@ const PlansPage = () => {
   }, []);
 
   const handleSubscribe = async () => {
+    // Don't proceed if user already has premium
+    if (isPremium) {
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user?.id) {
-        router.push('/login');
+      if (!session) {
+        setError('Please log in to subscribe');
         return;
       }
 
-      const checkoutResponse = await fetch('/api/create-checkout-session', {
+      const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          userId: session.user.id,
-          planId: planData?.id || 'premium-monthly',
-          successUrl: `${window.location.origin}/dashboard?success=true`,
-          cancelUrl: `${window.location.origin}/plans?canceled=true`,
+          planId: planData?.id || 'premium',
         }),
       });
 
-      if (!checkoutResponse.ok) {
-        const errorData = await checkoutResponse.json();
-        throw new Error(`Checkout failed: ${errorData.details || errorData.error || 'Unknown error'}`);
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
       }
 
-      const { url } = await checkoutResponse.json();
-      window.location.href = url;
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      setError(errorMessage);
+      console.error('Subscription error:', err);
+      setError('Checkout failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }
+  };
+
+  // Calculate days remaining for active subscription
+  const calculateDaysRemaining = (endDate: string) => {
+    console.log('Plans page - Calculating days remaining for:', endDate);
+
+    const end = new Date(endDate);
+    const now = new Date();
+
+    console.log('Plans page - End date:', end);
+    console.log('Plans page - Current date:', now);
+    console.log('Plans page - End date timestamp:', end.getTime());
+    console.log('Plans page - Current timestamp:', now.getTime());
+
+    const diffTime = end.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    console.log('Plans page - Time difference (ms):', diffTime);
+    console.log('Plans page - Days difference:', diffDays);
+
+    return diffDays > 0 ? diffDays : 0;
   };
 
   return (
@@ -101,15 +152,32 @@ const PlansPage = () => {
             </p>
           </div>
         </div>
-        {planFeatures && planFeatures.length > 0 &&
+
+        {planFeatures && planFeatures.length > 0 && (
           <main className="max-w-7xl mx-auto px-6 py-12">
             <div className="flex justify-center">
               <div className="relative group">
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
-                  {/* <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-2 rounded-full text-sm font-semibold shadow-lg">
-                    ⭐ Most Popular
-                  </div> */}
-                </div>
+                {/* Eye-catching "Your Current Plan" Badge - Only show if user has premium */}
+                {isPremium && (
+                  <div className="absolute -top-6 -left-6 z-20">
+                    <div className="relative">
+                      {/* Main badge */}
+                      <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white px-6 py-3 rounded-2xl shadow-2xl border-2 border-white/20 backdrop-blur-sm transform -rotate-12 hover:rotate-0 transition-transform duration-300">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                          <span className="font-bold text-sm tracking-wide">YOUR CURRENT PLAN</span>
+                        </div>
+                      </div>
+
+                      {/* Decorative elements */}
+                      <div className="absolute -top-2 -right-2 w-4 h-4 bg-yellow-400 rounded-full animate-bounce"></div>
+                      <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-pink-400 rounded-full animate-pulse"></div>
+
+                      {/* Glow effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl blur-lg opacity-50 -z-10"></div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl max-w-md w-full transform transition-all duration-300 hover:scale-105 hover:shadow-3xl">
                   <div className="text-center mb-8">
@@ -127,63 +195,71 @@ const PlansPage = () => {
                     <div className="text-white/60">per month</div>
                   </div>
 
+                  {/* Show subscription status if user has premium */}
+                  {isPremium && subscription?.current_period_end && (
+                    <div className="text-center mb-6 p-4 bg-emerald-500/20 border border-emerald-400/30 rounded-xl">
+                      <p className="text-emerald-300 font-semibold">
+                        {calculateDaysRemaining(subscription.current_period_end)} days remaining
+                      </p>
+                      <p className="text-emerald-200 text-sm">Your subscription is active</p>
+                      {/* Debug info - remove in production */}
+                      <p className="text-emerald-200/60 text-xs mt-1">
+                        Ends: {new Date(subscription.current_period_end).toLocaleDateString()}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="space-y-4 mb-8">
                     {planFeatures.map((feature, index) => (
                       <div key={index} className="flex items-center">
-                        <div className="w-5 h-5 bg-emerald-500/20 rounded-full flex items-center justify-center mr-3">
-                          <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
-                        <span className="text-white">{feature}</span>
+                        <span className="text-white/80">{feature}</span>
                       </div>
                     ))}
                   </div>
 
-                  {error && (
-                    <div className="mb-6 p-4 bg-red-500/20 border border-red-400/30 rounded-xl text-red-400 text-sm text-center">
-                      {error}
-                    </div>
-                  )}
-
                   <button
                     onClick={handleSubscribe}
-                    disabled={loading}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    disabled={loading || isPremium}
+                    className={`w-full font-semibold py-4 rounded-2xl transition-all duration-300 ${isPremium
+                        ? 'bg-gray-500/50 text-gray-300 cursor-not-allowed border border-gray-400/30'
+                        : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
+                      }`}
                   >
                     {loading ? (
                       <div className="flex items-center justify-center">
-                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-3"></div>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                         Processing...
+                      </div>
+                    ) : isPremium ? (
+                      <div className="flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-300 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Already Subscribed
                       </div>
                     ) : (
                       'Start Premium Plan'
                     )}
                   </button>
 
-                  <div className="text-center mt-6">
-                    <p className="text-white/40 text-sm">
-                      Cancel anytime • No setup fees • Secure payment
-                    </p>
-                  </div>
+                  {error && (
+                    <div className="mt-4 p-3 bg-red-500/20 border border-red-400/30 rounded-xl">
+                      <p className="text-red-300 text-sm text-center">{error}</p>
+                    </div>
+                  )}
                 </div>
-
               </div>
             </div>
-
-            <div className="text-center mt-12">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="text-white/60 hover:text-white transition-colors duration-300"
-              >
-                ← Back to Dashboard
-              </button>
-            </div>
           </main>
-        }
+        )}
       </div>
     </div>
   );
 };
 
-export default PlansPage; 
+export default PlansPage;
