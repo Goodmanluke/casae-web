@@ -17,22 +17,51 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // Enable CORS for Vercel
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, stripe-signature')
+
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(200).end()
+    return
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   const sig = req.headers['stripe-signature']
+  
+  if (!sig) {
+    console.error('No stripe-signature header found')
+    return res.status(400).json({ error: 'No signature header' })
+  }
+
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET not configured')
+    return res.status(500).json({ error: 'Webhook secret not configured' })
+  }
+
   let event: Stripe.Event
 
   try {
-    const body = await getRawBody(req)
-
-    console.log('body==================', body)
-    event = stripe.webhooks.constructEvent(body, sig as string, webhookSecret)
-    console.log('event==================', event)
+    // Get raw body using Vercel-compatible method
+    const body = await getRawBodyVercel(req)
+    console.log('Raw body length:', body.length)
+    console.log('Signature header:', sig)
+    
+    // Verify the webhook signature
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
+    console.log('Event verified successfully:', event.type)
 
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
+    console.error('Error details:', {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      type: err instanceof Error ? err.constructor.name : 'Unknown'
+    })
     return res.status(400).json({ error: 'Invalid signature' })
   }
 
@@ -51,7 +80,6 @@ export default async function handler(
         console.log(`Unhandled event type: ${event.type}`)
     }
 
-    console.log('event==================', event)
     res.status(200).json({ received: true })
   } catch (error) {
     console.error('Error processing webhook:', error)
@@ -60,53 +88,94 @@ export default async function handler(
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  console.log('Processing checkout.session.completed:', session.id)
 
-  if (session.mode !== 'subscription') return
+  if (session.mode !== 'subscription') {
+    console.log('Not a subscription checkout, skipping')
+    return
+  }
 
   const userId = session.metadata?.userId
   const planId = session.metadata?.planId
   const customerId = session.customer as string
   const subscriptionId = session.subscription as string
 
-  if (!userId || !planId) return
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-  
-  const result = await supabase
-    .from('user_subscriptions')
-    .upsert({
-      user_id: userId,
-      stripe_subscription_id: subscriptionId,
-      stripe_customer_id: customerId,
-      plan_id: planId,
-      status: subscription.status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      cancel_at_period_end: subscription.cancel_at_period_end,
-    })
+  if (!userId || !planId) {
+    console.error('Missing userId or planId in session metadata')
+    return
+  }
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+    
+    const { error } = await supabase
+      .from('user_subscriptions')
+      .upsert({
+        user_id: userId,
+        stripe_subscription_id: subscriptionId,
+        stripe_customer_id: customerId,
+        plan_id: planId,
+        status: subscription.status,
+        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        cancel_at_period_end: subscription.cancel_at_period_end,
+      })
+
+    if (error) {
+      console.error('Error upserting subscription:', error)
+    } else {
+      console.log('Subscription created/updated successfully')
+    }
+  } catch (error) {
+    console.error('Error handling checkout completed:', error)
+  }
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  const result = await supabase
-    .from('user_subscriptions')
-    .update({
-      status: subscription.status,
-      current_period_start: subscription.current_period_start ? new Date(subscription.current_period_start * 1000).toISOString() : null,
-      current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null,
-      cancel_at_period_end: subscription.cancel_at_period_end,
-    })
-    .eq('stripe_subscription_id', subscription.id)
+  console.log('Processing customer.subscription.updated:', subscription.id)
 
-    console.log('result==================', result)
+  try {
+    const { error } = await supabase
+      .from('user_subscriptions')
+      .update({
+        status: subscription.status,
+        current_period_start: subscription.current_period_start ? new Date(subscription.current_period_start * 1000).toISOString() : null,
+        current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null,
+        cancel_at_period_end: subscription.cancel_at_period_end,
+      })
+      .eq('stripe_subscription_id', subscription.id)
+
+    if (error) {
+      console.error('Error updating subscription:', error)
+    } else {
+      console.log('Subscription updated successfully')
+    }
+  } catch (error) {
+    console.error('Error handling subscription updated:', error)
+  }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  await supabase
-    .from('user_subscriptions')
-    .update({ status: 'canceled' })
-    .eq('stripe_subscription_id', subscription.id)
+  console.log('Processing customer.subscription.deleted:', subscription.id)
+
+  try {
+    const { error } = await supabase
+      .from('user_subscriptions')
+      .update({ status: 'canceled' })
+      .eq('stripe_subscription_id', subscription.id)
+
+    if (error) {
+      console.error('Error canceling subscription:', error)
+    } else {
+      console.log('Subscription canceled successfully')
+    }
+  } catch (error) {
+    console.error('Error handling subscription deleted:', error)
+  }
 }
 
-async function getRawBody(req: NextApiRequest): Promise<Buffer> {
+// Vercel-compatible raw body parsing
+async function getRawBodyVercel(req: NextApiRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
     
@@ -129,6 +198,6 @@ async function getRawBody(req: NextApiRequest): Promise<Buffer> {
 
 export const config = {
   api: {
-    bodyParser: false, // This is crucial!
+    bodyParser: false, // This is crucial for Vercel
   },
 }
