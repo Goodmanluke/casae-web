@@ -17,7 +17,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -52,6 +51,7 @@ export default async function handler(
         console.log(`Unhandled event type: ${event.type}`)
     }
 
+    console.log('event==================', event)
     res.status(200).json({ received: true })
   } catch (error) {
     console.error('Error processing webhook:', error)
@@ -60,8 +60,6 @@ export default async function handler(
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-
-  console.log('session==================', session)
 
   if (session.mode !== 'subscription') return
 
@@ -108,25 +106,29 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     .eq('stripe_subscription_id', subscription.id)
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
-
 async function getRawBody(req: NextApiRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    let body = ''
-    req.on('data', (chunk) => {
-      body += chunk
+    const chunks: Buffer[] = []
+    
+    req.on('data', (chunk: Buffer) => {
+      chunks.push(chunk)
     })
 
-    console.log('getrawbody==================', body)
     req.on('end', () => {
-      resolve(Buffer.from(body))
+      const body = Buffer.concat(chunks)
+      console.log('Raw body received:', body.length, 'bytes')
+      resolve(body)
     })
+    
     req.on('error', (err) => {
+      console.error('Error reading request body:', err)
       reject(err)
     })
   })
+}
+
+export const config = {
+  api: {
+    bodyParser: false, // This is crucial!
+  },
 }
