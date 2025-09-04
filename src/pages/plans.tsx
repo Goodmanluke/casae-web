@@ -89,7 +89,10 @@ const PlansPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          planId: planData?.id || 'premium',
+          userId: session.user.id,
+          planId: planData?.id || 'premium-monthly',
+          successUrl: `${window.location.origin}/dashboard?success=true`,
+          cancelUrl: `${window.location.origin}/plans?canceled=true`,
         }),
       });
 
@@ -111,21 +114,11 @@ const PlansPage = () => {
 
   // Calculate days remaining for active subscription
   const calculateDaysRemaining = (endDate: string) => {
-    console.log('Plans page - Calculating days remaining for:', endDate);
-
     const end = new Date(endDate);
     const now = new Date();
 
-    console.log('Plans page - End date:', end);
-    console.log('Plans page - Current date:', now);
-    console.log('Plans page - End date timestamp:', end.getTime());
-    console.log('Plans page - Current timestamp:', now.getTime());
-
     const diffTime = end.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    console.log('Plans page - Time difference (ms):', diffTime);
-    console.log('Plans page - Days difference:', diffDays);
 
     return diffDays > 0 ? diffDays : 0;
   };

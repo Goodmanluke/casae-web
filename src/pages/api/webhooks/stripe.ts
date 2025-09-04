@@ -17,6 +17,7 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
@@ -63,22 +64,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const subscriptionId = session.subscription as string
 
   if (!userId || !planId) return
-
-  // Check if user already has a subscription
-  const { data: existingSubscription } = await supabase
-    .from('user_subscriptions')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .single()
-  
-  if (existingSubscription) {
-    console.log('User already has a subscription, skipping...')
-    return
-  }
-
-  console.log('existingSubscription:=================', existingSubscription)
-
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)
   
   const result = await supabase
@@ -93,19 +78,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
     })
-
-    console.log('First stage result:=================', result)
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  console.log('Second stage: Updating existing subscription...')
-  console.log('Subscription data received:', {
-    id: subscription.id,
-    status: subscription.status,
-    current_period_start: subscription.current_period_start,
-    current_period_end: subscription.current_period_end
-  })
-  
   const result = await supabase
     .from('user_subscriptions')
     .update({
@@ -115,8 +90,6 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       cancel_at_period_end: subscription.cancel_at_period_end,
     })
     .eq('stripe_subscription_id', subscription.id)
-
-  console.log("Second stage result:=================", result)
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {

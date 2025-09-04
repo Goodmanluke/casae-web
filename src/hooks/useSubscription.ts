@@ -21,11 +21,7 @@ export function useSubscription(userId: string | undefined) {
     
     try {
       setLoading(true)
-      console.log('Loading subscription for user:', userId)
-      console.log('Environment check:', {
-        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      })
+
       // First check if user is authenticated
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
       
@@ -34,14 +30,15 @@ export function useSubscription(userId: string | undefined) {
         throw new Error('User not authenticated')
       }
 
-      console.log('User authenticated, loading subscription...')
-
       const { data, error } = await supabase
         .from('user_subscriptions')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'active')
-        .single()
+        .maybeSingle()
+
+      console.log('data', data);
+      console.log('error', error);
 
       if (error && error.code !== 'PGRST116') {
         throw error
@@ -108,6 +105,8 @@ export function useSubscription(userId: string | undefined) {
       setError(err instanceof Error ? err.message : 'Failed to cancel subscription')
     }
   }
+
+  console.log('subscription', subscription);
 
   const isPremium = subscription?.status === 'active'
   const isTrialing = subscription?.status === 'trialing'
