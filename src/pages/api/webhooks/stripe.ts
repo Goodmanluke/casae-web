@@ -27,7 +27,11 @@ export default async function handler(
 
   try {
     const body = await getRawBody(req)
+
+    console.log('body==================', body)
     event = stripe.webhooks.constructEvent(body, sig as string, webhookSecret)
+    console.log('event==================', event)
+
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return res.status(400).json({ error: 'Invalid signature' })
@@ -56,6 +60,9 @@ export default async function handler(
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+
+  console.log('session==================', session)
+
   if (session.mode !== 'subscription') return
 
   const userId = session.metadata?.userId
@@ -90,6 +97,8 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       cancel_at_period_end: subscription.cancel_at_period_end,
     })
     .eq('stripe_subscription_id', subscription.id)
+
+    console.log('result==================', result)
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -111,6 +120,8 @@ async function getRawBody(req: NextApiRequest): Promise<Buffer> {
     req.on('data', (chunk) => {
       body += chunk
     })
+
+    console.log('getrawbody==================', body)
     req.on('end', () => {
       resolve(Buffer.from(body))
     })
