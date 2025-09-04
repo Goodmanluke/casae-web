@@ -29,15 +29,11 @@ export default async function handler(
     return
   }
 
-  console.log('subscription-plans API called with method:', req.method)
-  
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
   try {
-    console.log('Fetching plans from Supabase...')
-    
     // Fetch plans with pricing and features from database
     const { data: plans, error: plansError } = await supabase
       .from('plans')
@@ -63,8 +59,6 @@ export default async function handler(
       `)
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
-
-    console.log('Supabase response:', { plans, plansError })
 
     if (plansError) {
       console.error('Error fetching plans:', plansError)
@@ -105,7 +99,6 @@ export default async function handler(
       }
     }) || []
 
-    console.log('Transformed plans:', transformedPlans)
     res.status(200).json(transformedPlans)
   } catch (error) {
     console.error('Error in subscription plans API:', error)

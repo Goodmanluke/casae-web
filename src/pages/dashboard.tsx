@@ -45,7 +45,7 @@ const Dashboard = () => {
         return;
       }
       setUserEmail(session.user?.email ?? null);
-        setUserId(session.user?.id);
+      setUserId(session.user?.id);
       // After verifying the session, load saved properties
       await fetchSavedProperties(session.user?.id ?? '');
       setLoading(false);
@@ -208,6 +208,18 @@ const Dashboard = () => {
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Navigation */}
         <Navigation />
+
+        {/* Premium Badge - Top Right Corner */}
+        {isPremium && (
+          <div className="fixed top-4 right-4 z-50">
+            <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-2 rounded-full shadow-2xl border border-emerald-400/30 backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                <span className="font-semibold text-sm">PREMIUM</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Page Header */}
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -403,7 +415,7 @@ const Dashboard = () => {
           <div className="mt-12">
             <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
               <h2 className="text-2xl font-bold text-white mb-6">Subscription Status</h2>
-              
+
               {subLoading ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-400 mx-auto"></div>
@@ -487,17 +499,33 @@ const Dashboard = () => {
                   <p className="text-white/60 text-sm">View your property database</p>
                 </button>
 
+                {/* Conditional Upgrade Plan Button */}
                 <button
-                  onClick={handleSubscribe}
-                  className="group bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 backdrop-blur-sm rounded-2xl p-6 border border-emerald-400/30 transition-all duration-300 transform hover:scale-105"
+                  onClick={isPremium ? undefined : handleSubscribe}
+                  className={`group rounded-2xl p-6 border transition-all duration-300 ${isPremium
+                      ? 'bg-gradient-to-r from-emerald-500/20 to-teal-600/20 border-emerald-400/30 cursor-not-allowed opacity-75'
+                      : 'bg-gradient-to-r from-emerald-500/20 to-teal-600/20 hover:from-emerald-500/30 hover:to-teal-600/30 border-emerald-400/30 transform hover:scale-105'
+                    }`}
+                  disabled={isPremium}
                 >
-                  <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
+                  <div className={`w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-300 ${isPremium ? '' : 'group-hover:scale-110'
+                    }`}>
+                    {isPremium ? (
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                      </svg>
+                    )}
                   </div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Upgrade Plan</h3>
-                  <p className="text-white/60 text-sm">Unlock premium features</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">
+                    {isPremium ? 'Premium Active' : 'Upgrade Plan'}
+                  </h3>
+                  <p className="text-white/60 text-sm">
+                    {isPremium ? 'You are in Premium mode' : 'Unlock premium features'}
+                  </p>
                 </button>
               </div>
             </div>

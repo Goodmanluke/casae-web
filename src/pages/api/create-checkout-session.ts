@@ -31,9 +31,6 @@ export default async function handler(
     return
   }
 
-  console.log('create-checkout-session API called with method:', req.method)
-  console.log('Request body:', req.body)
-  
   if (req.method !== 'POST') {
     console.log('Method not allowed, returning 405')
     return res.status(405).json({ error: 'Method not allowed' })
@@ -49,8 +46,6 @@ export default async function handler(
       })
     }
 
-    console.log('Fetching plan data from Supabase...')
-    
     // Get the Stripe price ID from the database based on planId
     const { data: planData, error: planError } = await supabase
       .from('plans')
@@ -66,26 +61,17 @@ export default async function handler(
       .eq('is_active', true)
       .single()
 
-    console.log('Supabase plan response:', { planData, planError })
-
     if (planError || !planData) {
       console.error('Error fetching plan:', planError)
       return res.status(400).json({ error: 'Invalid plan ID' })
     }
 
     const stripePriceId = planData.plan_pricing[0]?.stripe_price_id
+
     if (!stripePriceId) {
       console.error('No Stripe price ID found for plan:', planId)
       return res.status(500).json({ error: 'Stripe price ID not configured for this plan' })
     }
-
-    console.log('Creating checkout session with:', {
-      userId,
-      planId,
-      stripePriceId,
-      successUrl,
-      cancelUrl
-    })
 
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
@@ -102,11 +88,10 @@ export default async function handler(
       client_reference_id: userId,
       metadata: {
         userId,
-        planId,
+        planId: process.env.STRIPE_PLAN_ID || '',
       }
     })
 
-    console.log('Checkout session created successfully:', session.id)
     res.status(200).json({ sessionId: session.id, url: session.url })
   } catch (error) {
     console.error('Error creating checkout session:', error)

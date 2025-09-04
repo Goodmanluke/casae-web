@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -25,7 +25,8 @@ export default async function handler(
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig as string, webhookSecret)
+    const body = await getRawBody(req)
+    event = stripe.webhooks.constructEvent(body, sig as string, webhookSecret)
   } catch (err) {
     console.error('Webhook signature verification failed:', err)
     return res.status(400).json({ error: 'Invalid signature' })
@@ -63,9 +64,24 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   if (!userId || !planId) return
 
+  // Check if user already has a subscription
+  const { data: existingSubscription } = await supabase
+    .from('user_subscriptions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single()
+  
+  if (existingSubscription) {
+    console.log('User already has a subscription, skipping...')
+    return
+  }
+
+  console.log('existingSubscription:=================', existingSubscription)
+
   const subscription = await stripe.subscriptions.retrieve(subscriptionId)
   
-  await supabase
+  const result = await supabase
     .from('user_subscriptions')
     .upsert({
       user_id: userId,
@@ -77,18 +93,30 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
     })
+
+    console.log('First stage result:=================', result)
 }
 
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  await supabase
+  console.log('Second stage: Updating existing subscription...')
+  console.log('Subscription data received:', {
+    id: subscription.id,
+    status: subscription.status,
+    current_period_start: subscription.current_period_start,
+    current_period_end: subscription.current_period_end
+  })
+  
+  const result = await supabase
     .from('user_subscriptions')
     .update({
       status: subscription.status,
-      current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      current_period_start: subscription.current_period_start ? new Date(subscription.current_period_start * 1000).toISOString() : null,
+      current_period_end: subscription.current_period_end ? new Date(subscription.current_period_end * 1000).toISOString() : null,
       cancel_at_period_end: subscription.cancel_at_period_end,
     })
     .eq('stripe_subscription_id', subscription.id)
+
+  console.log("Second stage result:=================", result)
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
@@ -102,4 +130,19 @@ export const config = {
   api: {
     bodyParser: false,
   },
-} 
+}
+
+async function getRawBody(req: NextApiRequest): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    let body = ''
+    req.on('data', (chunk) => {
+      body += chunk
+    })
+    req.on('end', () => {
+      resolve(Buffer.from(body))
+    })
+    req.on('error', (err) => {
+      reject(err)
+    })
+  })
+}
