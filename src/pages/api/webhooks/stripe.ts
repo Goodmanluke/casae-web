@@ -6,9 +6,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2022-11-15',
 })
 
+// const supabase = createClient(
+//  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+//  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+//)
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
