@@ -53,7 +53,7 @@ export default async function handler(
     console.log('Signature header:', sig)
     
     // Verify the webhook signature
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
+    event = stripe.webhooks.constructEvent(body.toString('utf8'), sig, webhookSecret)
     console.log('Event verified successfully:', event.type)
 
   } catch (err) {
