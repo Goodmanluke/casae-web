@@ -1,25 +1,31 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabase';
-import Navigation from '../components/Navigation';
-import { useSubscription } from '../hooks/useSubscription';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { supabase } from "../lib/supabase";
+import Navigation from "../components/Navigation";
+import { useSubscription } from "../hooks/useSubscription";
 
 const PlansPage = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [planFeatures, setPlanFeatures] = useState<string[]>([]);
-  const [planData, setPlanData] = useState<any>(null);
   const [userId, setUserId] = useState<string | undefined>();
 
   // Get subscription status
-  const { subscription, loading: subLoading, isPremium, isTrialing, isPastDue } = useSubscription(userId);
+  const {
+    subscription,
+    loading: subLoading,
+    isPremium,
+    isPro,
+    isTrialing,
+    isPastDue,
+    hasProAccess,
+  } = useSubscription(userId);
 
   // Check for user session
   useEffect(() => {
     const fetchSession = async () => {
       if (!supabase) {
-        router.replace('/login');
+        router.replace("/login");
         return;
       }
       const {
@@ -27,7 +33,7 @@ const PlansPage = () => {
         error,
       } = await supabase.auth.getSession();
       if (error || !session) {
-        router.replace('/login');
+        router.replace("/login");
         return;
       }
       setUserId(session.user?.id);
@@ -35,41 +41,75 @@ const PlansPage = () => {
     fetchSession();
   }, [router]);
 
-  // Fetch plan data on component mount
+  const [allPlans, setAllPlans] = useState([
+    {
+      id: "premium-plan",
+      name: "Premium",
+      price: 49.99,
+      description: "Perfect for real estate professionals",
+      features: [
+        "Everything in Pro",
+        "Advanced Investment Analytics",
+        "Market Trend Analysis",
+        "Priority Support",
+        "Custom Reports",
+        "API Access",
+        "Team Collaboration",
+      ],
+      color: "from-emerald-500 to-teal-600",
+      popular: true,
+    },
+    {
+      id: "pro-plan",
+      name: "Pro",
+      price: 69.99,
+      description: "Perfect for serious investors",
+      features: [
+        "Investment Calculators (BRRR, Flip, Buy & Hold)",
+        "Unlimited CMA Reports",
+        "PDF Downloads",
+        "Email Support",
+        "Basic Analytics",
+      ],
+      color: "from-blue-500 to-cyan-500",
+      popular: false,
+    },
+  ]);
+
   useEffect(() => {
     const fetchPlanData = async () => {
       try {
-        const response = await fetch('/api/subscription-plans');
+        const response = await fetch("/api/subscription-plans");
         if (response.ok) {
           const plans = await response.json();
           if (plans.length > 0) {
-            const premiumPlan = plans.find((p: any) => p.name === 'Premium Plan');
-            if (premiumPlan) {
-              setPlanData(premiumPlan);
-              // Convert features object to array of strings
-              const features = Object.entries(premiumPlan.features || {}).map(([key, value]) => {
-                if (typeof value === 'boolean' && value) {
-                  return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                } else if (typeof value === 'string') {
-                  return `${value} ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
-                }
-                return `${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}`;
-              });
-              setPlanFeatures(features);
-            }
+            // Update with real data if available
+            const updatedPlans = allPlans.map((staticPlan) => {
+              const dbPlan = plans.find((p: any) =>
+                p.name.toLowerCase().includes(staticPlan.name.toLowerCase())
+              );
+              if (dbPlan) {
+                return {
+                  ...staticPlan,
+                  id: dbPlan.id,
+                  price: dbPlan.price || staticPlan.price,
+                };
+              }
+              return staticPlan;
+            });
+            setAllPlans(updatedPlans);
           }
         }
       } catch (err) {
-        console.error('Error fetching plan data:', err);
+        console.error("Error fetching plan data:", err);
       }
     };
 
     fetchPlanData();
   }, []);
 
-  const handleSubscribe = async () => {
-    // Don't proceed if user already has premium
-    if (isPremium) {
+  const handleSubscribe = async (planId: string) => {
+    if (isPremium || (isPro && planId.includes("pro"))) {
       return;
     }
 
@@ -77,27 +117,29 @@ const PlansPage = () => {
       setLoading(true);
       setError(null);
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
-        setError('Please log in to subscribe');
+        setError("Please log in to subscribe");
         return;
       }
 
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           userId: session.user.id,
-          planId: planData?.id || 'premium-monthly',
+          planId: planId,
           successUrl: `${window.location.origin}/dashboard?success=true`,
           cancelUrl: `${window.location.origin}/plans?canceled=true`,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create checkout session');
+        throw new Error("Failed to create checkout session");
       }
 
       const { url } = await response.json();
@@ -105,8 +147,11 @@ const PlansPage = () => {
         window.location.href = url;
       }
     } catch (err) {
-      console.error('Subscription error:', err);
-      setError('Checkout failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      console.error("Subscription error:", err);
+      setError(
+        "Checkout failed: " +
+          (err instanceof Error ? err.message : "Unknown error")
+      );
     } finally {
       setLoading(false);
     }
@@ -146,110 +191,199 @@ const PlansPage = () => {
           </div>
         </div>
 
-        {planFeatures && planFeatures.length > 0 && (
-          <main className="max-w-7xl mx-auto px-6 py-12">
-            <div className="flex justify-center">
-              <div className="relative group">
-                {/* Eye-catching "Your Current Plan" Badge - Only show if user has premium */}
-                {isPremium && (
-                  <div className="absolute -top-6 -left-6 z-20">
-                    <div className="relative">
-                      {/* Main badge */}
-                      <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white px-6 py-3 rounded-2xl shadow-2xl border-2 border-white/20 backdrop-blur-sm transform -rotate-12 hover:rotate-0 transition-transform duration-300">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
-                          <span className="font-bold text-sm tracking-wide">YOUR CURRENT PLAN</span>
-                        </div>
+        <main className="max-w-7xl mx-auto px-6 py-12">
+          <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {allPlans.map((plan) => {
+              const isCurrentPlan =
+                (plan.name.toLowerCase().includes("pro") && isPro) ||
+                (plan.name.toLowerCase().includes("premium") && isPremium);
+              const isDowngrade = isPremium && plan.id.includes("pro");
+              const canSubscribe = !isCurrentPlan && !isDowngrade;
+
+              return (
+                <div key={plan.id} className="relative group">
+                  {/* Popular badge */}
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
+                      <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-6 py-2 rounded-full shadow-lg font-bold text-sm">
+                        MOST POPULAR
                       </div>
-
-                      {/* Decorative elements */}
-                      <div className="absolute -top-2 -right-2 w-4 h-4 bg-yellow-400 rounded-full animate-bounce"></div>
-                      <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-pink-400 rounded-full animate-pulse"></div>
-
-                      {/* Glow effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-2xl blur-lg opacity-50 -z-10"></div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="bg-white/10 backdrop-blur-xl rounded-3xl px-16 py-8 border border-white/20 shadow-2xl max-w-md w-full transform transition-all duration-300 hover:scale-105 hover:shadow-3xl">
-                  <div className="text-center mb-8">
-                    <div className="w-20 h-20 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <h3 className="text-2xl font-bold text-white mb-2">Premium Plan</h3>
-                    <p className="text-white/60">Perfect for real estate professionals</p>
-                  </div>
-
-                  <div className="text-center mb-8">
-                    <div className="text-4xl font-bold text-white mb-2">$49.99</div>
-                    <div className="text-white/60">per month</div>
-                  </div>
-
-                  {/* Show subscription status if user has premium */}
-                  {isPremium && subscription?.current_period_end && (
-                    <div className="text-center mb-6 p-4 bg-emerald-500/20 border border-emerald-400/30 rounded-xl">
-                      <p className="text-emerald-300 font-semibold">
-                        {calculateDaysRemaining(subscription.current_period_end)} days remaining
-                      </p>
-                      <p className="text-emerald-200 text-sm">Your subscription is active</p>
-                      {/* Debug info - remove in production */}
-                      <p className="text-emerald-200/60 text-xs mt-1">
-                        Ends: {new Date(subscription.current_period_end).toLocaleDateString()}
-                      </p>
                     </div>
                   )}
 
-                  <div className="space-y-4 mb-8">
-                    {planFeatures.map((feature, index) => (
-                      <div key={index} className="flex items-center">
-                        <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
-                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                  {/* Current plan badge */}
+                  {isCurrentPlan && (
+                    <div className="absolute -top-6 -left-6 z-20">
+                      <div className="relative">
+                        <div
+                          className={`bg-gradient-to-r ${plan.color} text-white px-6 py-3 rounded-2xl shadow-2xl border-2 border-white/20 backdrop-blur-sm transform -rotate-12 hover:rotate-0 transition-transform duration-300`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                            <span className="font-bold text-sm tracking-wide">
+                              YOUR CURRENT PLAN
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-white/80">{feature}</span>
+                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-yellow-400 rounded-full animate-bounce"></div>
+                        <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-pink-400 rounded-full animate-pulse"></div>
+                        <div
+                          className={`absolute inset-0 bg-gradient-to-r ${plan.color} rounded-2xl blur-lg opacity-50 -z-10`}
+                        ></div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
 
-                  <button
-                    onClick={handleSubscribe}
-                    disabled={loading || isPremium}
-                    className={`w-full font-semibold py-4 rounded-2xl transition-all duration-300 ${isPremium
-                        ? 'bg-gray-500/50 text-gray-300 cursor-not-allowed border border-gray-400/30'
-                        : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
-                      }`}
+                  <div
+                    className={`bg-white/10 backdrop-blur-xl rounded-3xl px-8 py-8 border border-white/20 shadow-2xl h-full transform transition-all duration-300 hover:scale-105 hover:shadow-3xl ${
+                      plan.popular ? "ring-2 ring-yellow-400/50" : ""
+                    }`}
                   >
-                    {loading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                        Processing...
-                      </div>
-                    ) : isPremium ? (
-                      <div className="flex items-center justify-center">
-                        <svg className="w-5 h-5 text-gray-300 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <div className="text-center mb-8">
+                      <div
+                        className={`w-20 h-20 bg-gradient-to-r ${plan.color} rounded-2xl flex items-center justify-center mx-auto mb-4`}
+                      >
+                        <svg
+                          className="w-10 h-10 text-white"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
                         </svg>
-                        Already Subscribed
                       </div>
-                    ) : (
-                      'Start Premium Plan'
-                    )}
-                  </button>
-
-                  {error && (
-                    <div className="mt-4 p-3 bg-red-500/20 border border-red-400/30 rounded-xl">
-                      <p className="text-red-300 text-sm text-center">{error}</p>
+                      <h3 className="text-2xl font-bold text-white mb-2">
+                        {plan.name}
+                      </h3>
+                      <p className="text-white/60">{plan.description}</p>
                     </div>
-                  )}
+
+                    <div className="text-center mb-8">
+                      <div className="text-4xl font-bold text-white mb-2">
+                        ${plan.price}
+                      </div>
+                      <div className="text-white/60">per month</div>
+                    </div>
+
+                    {/* Show subscription status if user has this plan */}
+                    {isCurrentPlan && subscription?.current_period_end && (
+                      <div className="text-center mb-6 p-4 bg-emerald-500/20 border border-emerald-400/30 rounded-xl">
+                        <p className="text-emerald-300 font-semibold">
+                          {calculateDaysRemaining(
+                            subscription.current_period_end
+                          )}{" "}
+                          days remaining
+                        </p>
+                        <p className="text-emerald-200 text-sm">
+                          Your subscription is active
+                        </p>
+                        <p className="text-emerald-200/60 text-xs mt-1">
+                          Ends:{" "}
+                          {new Date(
+                            subscription.current_period_end
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="space-y-4 mb-8 flex-grow">
+                      {plan.features.map((feature, index) => (
+                        <div key={index} className="flex items-start">
+                          <div
+                            className={`w-5 h-5 bg-gradient-to-r ${plan.color} rounded-full flex items-center justify-center mr-3 flex-shrink-0 mt-0.5`}
+                          >
+                            <svg
+                              className="w-3 h-3 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          </div>
+                          <span className="text-white/80 text-sm">
+                            {feature}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => handleSubscribe(plan.id)}
+                      disabled={loading || !canSubscribe}
+                      className={`w-full font-semibold py-4 rounded-2xl transition-all duration-300 ${
+                        !canSubscribe
+                          ? "bg-gray-500/50 text-gray-300 cursor-not-allowed border border-gray-400/30"
+                          : `bg-gradient-to-r ${plan.color} hover:opacity-90 text-white transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`
+                      }`}
+                    >
+                      {loading ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          Processing...
+                        </div>
+                      ) : isCurrentPlan ? (
+                        <div className="flex items-center justify-center">
+                          <svg
+                            className="w-5 h-5 text-gray-300 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          Current Plan
+                        </div>
+                      ) : isDowngrade ? (
+                        <div className="flex items-center justify-center">
+                          <svg
+                            className="w-5 h-5 text-gray-300 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                            />
+                          </svg>
+                          Downgrade Not Available
+                        </div>
+                      ) : (
+                        `Start ${plan.name} Plan`
+                      )}
+                    </button>
+
+                    {error && (
+                      <div className="mt-4 p-3 bg-red-500/20 border border-red-400/30 rounded-xl">
+                        <p className="text-red-300 text-sm text-center">
+                          {error}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          </main>
-        )}
+              );
+            })}
+          </div>
+        </main>
       </div>
     </div>
   );
