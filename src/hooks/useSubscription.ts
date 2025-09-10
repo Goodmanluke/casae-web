@@ -117,18 +117,17 @@ export function useSubscription(userId: string | undefined) {
     }
   };
 
-  console.log("subscription", subscription);
+  console.log("subscription", subscription?.plan_id);
 
   const isTrialing = subscription?.status === "trialing";
   const isPastDue = subscription?.status === "past_due";
 
   const isPro =
     subscription?.status === "active" &&
-    (subscription?.plan_id?.includes("pro") || subscription?.plan_id === "pro");
+    subscription?.plan_id === "price_1S5dVjIxka5CzeDAyzwYJrlF";
   const isPremium =
     subscription?.status === "active" &&
-    (subscription?.plan_id?.includes("premium") ||
-      subscription?.plan_id === "premium plan");
+    subscription?.plan_id === "price_1S4Z6uIxka5CzeDAJTlSeBmk";
 
   const hasAccess = isPremium || isTrialing;
   const hasProAccess = isPro || isPremium || isTrialing;

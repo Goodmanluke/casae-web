@@ -197,7 +197,6 @@ export default function InvestmentCalculators({
           <button
             className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-medium shadow-lg transition-all"
             onClick={() => {
-              // Fallback to plans page if checkout creation fails
               if (createCheckoutSession) {
                 createCheckoutSession("pro");
               } else {
@@ -206,18 +205,6 @@ export default function InvestmentCalculators({
             }}
           >
             Upgrade to Pro
-          </button>
-          <button
-            className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-medium shadow-lg transition-all"
-            onClick={() => {
-              if (createCheckoutSession) {
-                createCheckoutSession("premium");
-              } else {
-                window.location.href = "/plans";
-              }
-            }}
-          >
-            Upgrade to Premium
           </button>
         </div>
       </div>

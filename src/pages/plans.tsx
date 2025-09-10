@@ -195,8 +195,8 @@ const PlansPage = () => {
           <div className="grid lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {allPlans.map((plan) => {
               const isCurrentPlan =
-                (plan.id.includes("pro") && isPro) ||
-                (plan.id.includes("premium") && isPremium);
+                (plan.name.toLowerCase().includes("pro") && isPro) ||
+                (plan.name.toLowerCase().includes("premium") && isPremium);
               const isDowngrade = isPremium && plan.id.includes("pro");
               const canSubscribe = !isCurrentPlan && !isDowngrade;
 

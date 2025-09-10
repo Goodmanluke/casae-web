@@ -31,6 +31,7 @@ const Dashboard = () => {
     subscription,
     loading: subLoading,
     isPremium,
+    isPro,
     hasProAccess,
     isTrialing,
     isPastDue,
@@ -239,7 +240,7 @@ const Dashboard = () => {
         <Navigation />
 
         {/* Premium Badge - Top Right Corner */}
-        {hasProAccess && (
+        {isPro && (
           <div className="max-w-7xl mx-auto px-6 py-4 w-full">
             <div className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-3 rounded-2xl shadow-2xl border border-emerald-400/30 backdrop-blur-sm inline-flex items-center gap-3">
               <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
@@ -290,34 +291,30 @@ const Dashboard = () => {
 
             {/* Right Side - Subscribe Button */}
             <div className="flex flex-col items-end">
-              {!isPremium ||
-                (!hasProAccess && (
-                  <button
-                    onClick={handleSubscribe}
-                    className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg mb-2"
-                  >
-                    Subscribe
-                  </button>
-                ))}
-              {(isPremium || hasProAccess) &&
-                subscription?.current_period_end && (
-                  <div className="text-right">
-                    <p className="text-emerald-400 font-semibold text-lg">
-                      {calculateDaysRemaining(subscription.current_period_end)}{" "}
-                      days left
-                    </p>
-                    <p className="text-white/60 text-sm">
-                      Premium subscription
-                    </p>
-                    {/* Debug info - remove in production */}
-                    <p className="text-white/40 text-xs mt-1">
-                      Ends:{" "}
-                      {new Date(
-                        subscription.current_period_end
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
+              {!isPremium && !isPro && (
+                <button
+                  onClick={handleSubscribe}
+                  className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-2xl shadow-lg mb-2"
+                >
+                  Subscribe
+                </button>
+              )}
+              {(isPremium || isPro) && subscription?.current_period_end && (
+                <div className="text-right">
+                  <p className="text-emerald-400 font-semibold text-lg">
+                    {calculateDaysRemaining(subscription.current_period_end)}{" "}
+                    days left
+                  </p>
+                  <p className="text-white/60 text-sm">Premium subscription</p>
+                  {/* Debug info - remove in production */}
+                  <p className="text-white/40 text-xs mt-1">
+                    Ends:{" "}
+                    {new Date(
+                      subscription.current_period_end
+                    ).toLocaleDateString()}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -593,7 +590,7 @@ const Dashboard = () => {
                     </div>
                   )}
                 </div>
-              ) : hasProAccess ? (
+              ) : isPro ? (
                 <div className="bg-emerald-900/20 border border-emerald-400/30 rounded-xl p-6">
                   <div className="flex items-center mb-3">
                     <div className="w-4 h-4 bg-emerald-400 rounded-full mr-3"></div>
