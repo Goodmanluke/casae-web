@@ -117,17 +117,15 @@ export function useSubscription(userId: string | undefined) {
     }
   };
 
-  console.log("subscription", subscription?.plan_id);
-
   const isTrialing = subscription?.status === "trialing";
   const isPastDue = subscription?.status === "past_due";
 
   const isPro =
     subscription?.status === "active" &&
-    subscription?.plan_id === "price_1S5dVjIxka5CzeDAyzwYJrlF";
+    subscription?.plan_id === process.env.NEXT_PUBLIC_STRIPE_PRO_PLAN_ID;
   const isPremium =
     subscription?.status === "active" &&
-    subscription?.plan_id === "price_1S4Z6uIxka5CzeDAJTlSeBmk";
+    subscription?.plan_id === process.env.NEXT_PUBLIC_STRIPE_PLAN_ID;
 
   const hasAccess = isPremium || isTrialing;
   const hasProAccess = isPro || isPremium || isTrialing;

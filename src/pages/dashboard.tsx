@@ -191,21 +191,11 @@ const Dashboard = () => {
   };
 
   const calculateDaysRemaining = (endDate: string) => {
-    console.log("Calculating days remaining for:", endDate);
-
     const end = new Date(endDate);
     const now = new Date();
 
-    console.log("End date:", end);
-    console.log("Current date:", now);
-    console.log("End date timestamp:", end.getTime());
-    console.log("Current timestamp:", now.getTime());
-
     const diffTime = end.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    console.log("Time difference (ms):", diffTime);
-    console.log("Days difference:", diffDays);
 
     return diffDays > 0 ? diffDays : 0;
   };

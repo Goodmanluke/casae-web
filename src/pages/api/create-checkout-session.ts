@@ -70,6 +70,7 @@ export default async function handler(
       .select(
         `
     id,
+    name,
     plan_pricing!inner (
     stripe_price_id,
     price,
@@ -81,25 +82,31 @@ export default async function handler(
       .eq("is_active", true)
       .single();
 
-    let subscriptionId = process.env.STRIPE_PRICE_ID_PRO;
+    let subscriptionId = null;
+    let fallbackPriceId = null;
+    if (
+      planId === "pro-plan" ||
+      planId === "pro" ||
+      planData?.name?.toLowerCase().includes("pro")
+    ) {
+      fallbackPriceId = process.env.STRIPE_PRO_PRICE_ID;
+      subscriptionId = process.env.STRIPE_PRO_PLAN_ID;
+    } else if (
+      planId === "premium-plan" ||
+      planId === "premium" ||
+      planData?.name?.toLowerCase().includes("premium")
+    ) {
+      fallbackPriceId = process.env.STRIPE_PRICE_ID_PRO;
+      subscriptionId = process.env.STRIPE_PLAN_ID;
+    }
     if (planError || !planData) {
       console.error("Error fetching plan:", planError);
-
-      let fallbackPriceId = null;
-      if (planId === "pro-plan" || planId === "pro") {
-        fallbackPriceId = process.env.STRIPE_PRO_PRICE_ID;
-        subscriptionId = process.env.STRIPE_PRO_PLAN_ID;
-      } else if (planId === "premium-plan" || planId === "premium") {
-        fallbackPriceId = process.env.STRIPE_PRICE_ID_PRO;
-        subscriptionId = process.env.STRIPE_PLAN_ID;
-      }
 
       if (!fallbackPriceId) {
         return res
           .status(400)
           .json({ error: "Invalid plan ID and no fallback configured" });
       }
-
       stripePriceId = fallbackPriceId;
     } else {
       stripePriceId = planData.plan_pricing[0]?.stripe_price_id;

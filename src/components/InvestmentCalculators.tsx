@@ -69,7 +69,6 @@ export default function InvestmentCalculators({
   }, []);
   const { isPremium, isPro, isTrialing, hasProAccess, createCheckoutSession } =
     useSubscription(userId);
-  const hasAccess = hasProAccess;
 
   /*
    * BRRR calculator state. Many of these values are expressed as
@@ -185,7 +184,7 @@ export default function InvestmentCalculators({
       maximumFractionDigits: 0,
     })}`;
 
-  if (!hasAccess) {
+  if (!isPro) {
     return (
       <div className="mt-6 text-center bg-white/10 p-8 rounded-xl">
         <h2 className="text-2xl font-semibold text-white mb-4">Pro Feature</h2>
