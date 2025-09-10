@@ -34,7 +34,11 @@ interface InvestmentCalculatorsProps {
 }
 
 // Helper to compute a loan payment. Formula: r*L/(1-(1+r)^-n)
-function monthlyPayment(rate: number, nPeriods: number, principal: number): number {
+function monthlyPayment(
+  rate: number,
+  nPeriods: number,
+  principal: number
+): number {
   const r = rate / 12;
   if (r === 0) return principal / nPeriods;
   const pmt = (r * principal) / (1 - Math.pow(1 + r, -nPeriods));
@@ -46,7 +50,7 @@ export default function InvestmentCalculators({
   adjustedData,
   monthlyRent,
 }: InvestmentCalculatorsProps) {
-  const [activeTab, setActiveTab] = useState<'brrr' | 'flip' | 'hold'>('brrr');
+  const [activeTab, setActiveTab] = useState<"brrr" | "flip" | "hold">("brrr");
   // Prefill values from CMA
   const purchasePrice = baselineData?.estimate ?? 0;
   const arvValue = adjustedData?.estimate ?? purchasePrice;
@@ -57,12 +61,15 @@ export default function InvestmentCalculators({
   useEffect(() => {
     // load session on mount
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setUserId(session?.user?.id);
     })();
   }, []);
-  const { isPremium, isTrialing, createCheckoutSession } = useSubscription(userId);
-  const hasAccess = isPremium || isTrialing;
+  const { isPremium, isPro, isTrialing, hasProAccess, createCheckoutSession } =
+    useSubscription(userId);
+  const hasAccess = hasProAccess;
 
   /*
    * BRRR calculator state. Many of these values are expressed as
@@ -76,30 +83,30 @@ export default function InvestmentCalculators({
   const [brrrMaintenance, setBrrrMaintenance] = useState(0.05);
   const [brrrCapex, setBrrrCapex] = useState(0.05);
   const [brrrMgmt, setBrrrMgmt] = useState(0.1);
-  const [brrrInterestRate, setBrrrInterestRate] = useState(0.10);
+  const [brrrInterestRate, setBrrrInterestRate] = useState(0.1);
   const [brrrRefiRate, setBrrrRefiRate] = useState(0.07);
   const [brrrRefiLtv, setBrrrRefiLtv] = useState(0.75);
   const [brrrRefiAmortYears, setBrrrRefiAmortYears] = useState(30);
   const [brrrRefiClosingPct, setBrrrRefiClosingPct] = useState(0.03);
 
   // Flip calculator state
-  const [flipDownPayment, setFlipDownPayment] = useState(0.20);
+  const [flipDownPayment, setFlipDownPayment] = useState(0.2);
   const [flipClosingBuyPct, setFlipClosingBuyPct] = useState(0.03);
   const [flipClosingSellPct, setFlipClosingSellPct] = useState(0.06);
   const [flipRehab, setFlipRehab] = useState(0);
   const [flipHoldingMonths, setFlipHoldingMonths] = useState(6);
-  const [flipInterestRate, setFlipInterestRate] = useState(0.10);
+  const [flipInterestRate, setFlipInterestRate] = useState(0.1);
   const [flipUtilities, setFlipUtilities] = useState(0);
 
   // Hold calculator state
-  const [holdDownPayment, setHoldDownPayment] = useState(0.20);
+  const [holdDownPayment, setHoldDownPayment] = useState(0.2);
   const [holdClosingPct, setHoldClosingPct] = useState(0.03);
   const [holdInterestRate, setHoldInterestRate] = useState(0.08);
   const [holdLoanYears, setHoldLoanYears] = useState(30);
   const [holdVacancy, setHoldVacancy] = useState(0.05);
   const [holdMaintenance, setHoldMaintenance] = useState(0.05);
   const [holdCapex, setHoldCapex] = useState(0.05);
-  const [holdMgmt, setHoldMgmt] = useState(0.10);
+  const [holdMgmt, setHoldMgmt] = useState(0.1);
 
   // Calculations for BRRR
   const brrrLoanAmount = purchasePrice * (1 - brrrDownPayment);
@@ -107,18 +114,25 @@ export default function InvestmentCalculators({
   const brrrBuyClosing = purchasePrice * brrrClosingPct;
   const brrrMonthlyInterest = (brrrInterestRate / 12) * brrrLoanAmount;
   const brrrHoldingCost = brrrMonthlyInterest * brrrHoldingMonths;
-  const brrrCashIn = brrrDownPaymentAmt + brrrBuyClosing + brrrRehab + brrrHoldingCost;
+  const brrrCashIn =
+    brrrDownPaymentAmt + brrrBuyClosing + brrrRehab + brrrHoldingCost;
   // Stabilized operations
   const brrrGrossRent = estRent * 12;
   const brrrVacancyLoss = brrrGrossRent * brrrVacancy;
-  const brrrOperatingExpenses = (brrrMaintenance + brrrCapex + brrrMgmt) * brrrGrossRent;
+  const brrrOperatingExpenses =
+    (brrrMaintenance + brrrCapex + brrrMgmt) * brrrGrossRent;
   const brrrNoi = brrrGrossRent - brrrVacancyLoss - brrrOperatingExpenses;
   // Refinance
   const brrrRefiLoan = arvValue * brrrRefiLtv;
   const brrrRefiClosing = brrrRefiLoan * brrrRefiClosingPct;
-  const brrrCashOut = brrrRefiLoan - brrrLoanAmount - brrrRehab - brrrRefiClosing;
+  const brrrCashOut =
+    brrrRefiLoan - brrrLoanAmount - brrrRehab - brrrRefiClosing;
   const brrrCashLeftIn = Math.max(brrrCashIn - brrrCashOut, 0);
-  const brrrRefiMonthlyPi = monthlyPayment(brrrRefiRate, brrrRefiAmortYears * 12, brrrRefiLoan);
+  const brrrRefiMonthlyPi = monthlyPayment(
+    brrrRefiRate,
+    brrrRefiAmortYears * 12,
+    brrrRefiLoan
+  );
   const brrrAnnualDebtService = brrrRefiMonthlyPi * 12;
   const brrrAnnualCashFlow = brrrNoi - brrrAnnualDebtService;
   const brrrCoC = brrrCashLeftIn > 0 ? brrrAnnualCashFlow / brrrCashLeftIn : 0;
@@ -128,11 +142,17 @@ export default function InvestmentCalculators({
   const flipDownPaymentAmt = purchasePrice * flipDownPayment;
   const flipBuyClosing = purchasePrice * flipClosingBuyPct;
   const flipMonthlyInterest = (flipInterestRate / 12) * flipLoanAmount;
-  const flipHoldingCost = flipMonthlyInterest * flipHoldingMonths + flipUtilities * flipHoldingMonths;
-  const flipTotalCost = purchasePrice + flipBuyClosing + flipRehab + flipHoldingCost;
+  const flipHoldingCost =
+    flipMonthlyInterest * flipHoldingMonths + flipUtilities * flipHoldingMonths;
+  const flipTotalCost =
+    purchasePrice + flipBuyClosing + flipRehab + flipHoldingCost;
   const flipSellClosing = arvValue * flipClosingSellPct;
   const flipNetProfit = arvValue - flipSellClosing - flipTotalCost;
-  const flipCashInvested = flipDownPaymentAmt + flipBuyClosing + flipRehab + flipMonthlyInterest * flipHoldingMonths;
+  const flipCashInvested =
+    flipDownPaymentAmt +
+    flipBuyClosing +
+    flipRehab +
+    flipMonthlyInterest * flipHoldingMonths;
   const flipRoi = flipCashInvested > 0 ? flipNetProfit / flipCashInvested : 0;
   const flipAnnualizedRoi = flipRoi * (12 / (flipHoldingMonths || 1));
 
@@ -140,39 +160,66 @@ export default function InvestmentCalculators({
   const holdLoanAmount = purchasePrice * (1 - holdDownPayment);
   const holdDownPaymentAmt = purchasePrice * holdDownPayment;
   const holdBuyClosing = purchasePrice * holdClosingPct;
-  const holdMonthlyPi = monthlyPayment(holdInterestRate, holdLoanYears * 12, holdLoanAmount);
+  const holdMonthlyPi = monthlyPayment(
+    holdInterestRate,
+    holdLoanYears * 12,
+    holdLoanAmount
+  );
   const holdGrossRent = estRent * 12;
   const holdVacancyLoss = holdGrossRent * holdVacancy;
-  const holdOperatingExpenses = (holdMaintenance + holdCapex + holdMgmt) * holdGrossRent;
+  const holdOperatingExpenses =
+    (holdMaintenance + holdCapex + holdMgmt) * holdGrossRent;
   const holdNoi = holdGrossRent - holdVacancyLoss - holdOperatingExpenses;
   const holdAnnualDebtService = holdMonthlyPi * 12;
   const holdAnnualCashFlow = holdNoi - holdAnnualDebtService;
   const holdTotalCashInvested = holdDownPaymentAmt + holdBuyClosing;
-  const holdCoC = holdTotalCashInvested > 0 ? holdAnnualCashFlow / holdTotalCashInvested : 0;
+  const holdCoC =
+    holdTotalCashInvested > 0 ? holdAnnualCashFlow / holdTotalCashInvested : 0;
   const holdCapRate = purchasePrice > 0 ? holdNoi / purchasePrice : 0;
 
   // Render helper for number formatting
   const fmtPct = (value: number) => `${(value * 100).toFixed(1)}%`;
-  const fmtUsd = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const fmtUsd = (value: number) =>
+    `$${value.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })}`;
 
   if (!hasAccess) {
     return (
       <div className="mt-6 text-center bg-white/10 p-8 rounded-xl">
         <h2 className="text-2xl font-semibold text-white mb-4">Pro Feature</h2>
-        <p className="text-gray-300 mb-6">Investment calculators are available on the Pro plan. Upgrade to unlock BRRR, Flip and Buy & Hold analyses.</p>
-        <button
-          className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-xl font-medium shadow-lg transition-all"
-          onClick={() => {
-            // Fallback to plans page if checkout creation fails
-            if (createCheckoutSession) {
-              createCheckoutSession('pro');
-            } else {
-              window.location.href = '/plans';
-            }
-          }}
-        >
-          Upgrade to Pro
-        </button>
+        <p className="text-gray-300 mb-6">
+          Investment calculators are available on the Pro plan or higher.
+          Upgrade to unlock BRRR, Flip and Buy & Hold analyses.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <button
+            className="px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white rounded-xl font-medium shadow-lg transition-all"
+            onClick={() => {
+              // Fallback to plans page if checkout creation fails
+              if (createCheckoutSession) {
+                createCheckoutSession("pro");
+              } else {
+                window.location.href = "/plans";
+              }
+            }}
+          >
+            Upgrade to Pro
+          </button>
+          <button
+            className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-medium shadow-lg transition-all"
+            onClick={() => {
+              if (createCheckoutSession) {
+                createCheckoutSession("premium");
+              } else {
+                window.location.href = "/plans";
+              }
+            }}
+          >
+            Upgrade to Premium
+          </button>
+        </div>
       </div>
     );
   }
@@ -182,26 +229,38 @@ export default function InvestmentCalculators({
       {/* Tabs for calculator types */}
       <div className="flex space-x-2 mb-6">
         <button
-          onClick={() => setActiveTab('brrr')}
-          className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === 'brrr' ? 'bg-cyan-500 text-white shadow-lg' : 'bg-white/20 text-white hover:bg-white/30'}`}
+          onClick={() => setActiveTab("brrr")}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            activeTab === "brrr"
+              ? "bg-cyan-500 text-white shadow-lg"
+              : "bg-white/20 text-white hover:bg-white/30"
+          }`}
         >
           BRRR
         </button>
         <button
-          onClick={() => setActiveTab('flip')}
-          className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === 'flip' ? 'bg-cyan-500 text-white shadow-lg' : 'bg-white/20 text-white hover:bg-white/30'}`}
+          onClick={() => setActiveTab("flip")}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            activeTab === "flip"
+              ? "bg-cyan-500 text-white shadow-lg"
+              : "bg-white/20 text-white hover:bg-white/30"
+          }`}
         >
           Flip
         </button>
         <button
-          onClick={() => setActiveTab('hold')}
-          className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === 'hold' ? 'bg-cyan-500 text-white shadow-lg' : 'bg-white/20 text-white hover:bg-white/30'}`}
+          onClick={() => setActiveTab("hold")}
+          className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            activeTab === "hold"
+              ? "bg-cyan-500 text-white shadow-lg"
+              : "bg-white/20 text-white hover:bg-white/30"
+          }`}
         >
           Buy & Hold
         </button>
       </div>
       {/* BRRR calculator */}
-      {activeTab === 'brrr' && (
+      {activeTab === "brrr" && (
         <div className="bg-white/10 p-6 rounded-xl text-white space-y-4">
           <h3 className="text-xl font-semibold">BRRR Calculator</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -210,17 +269,23 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={purchasePrice}
-                onChange={(e) => { /* purchase price is derived from CMA, no change */ }}
+                onChange={(e) => {
+                  /* purchase price is derived from CMA, no change */
+                }}
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
                 disabled
               />
             </div>
             <div>
-              <label className="block text-sm mb-1">After Repair Value (ARV)</label>
+              <label className="block text-sm mb-1">
+                After Repair Value (ARV)
+              </label>
               <input
                 type="number"
                 value={arvValue}
-                onChange={(e) => { /* ARV derived from CMA, no change */ }}
+                onChange={(e) => {
+                  /* ARV derived from CMA, no change */
+                }}
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
                 disabled
               />
@@ -239,7 +304,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrDownPayment * 100}
-                onChange={(e) => setBrrrDownPayment((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrDownPayment((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -248,7 +315,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrClosingPct * 100}
-                onChange={(e) => setBrrrClosingPct((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrClosingPct((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -257,7 +326,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrHoldingMonths}
-                onChange={(e) => setBrrrHoldingMonths(Number(e.target.value) || 0)}
+                onChange={(e) =>
+                  setBrrrHoldingMonths(Number(e.target.value) || 0)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -266,7 +337,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrVacancy * 100}
-                onChange={(e) => setBrrrVacancy((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrVacancy((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -275,7 +348,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrMaintenance * 100}
-                onChange={(e) => setBrrrMaintenance((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrMaintenance((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -284,7 +359,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrCapex * 100}
-                onChange={(e) => setBrrrCapex((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrCapex((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -293,7 +370,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrMgmt * 100}
-                onChange={(e) => setBrrrMgmt((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrMgmt((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -302,7 +381,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrInterestRate * 100}
-                onChange={(e) => setBrrrInterestRate((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrInterestRate((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -311,7 +392,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrRefiRate * 100}
-                onChange={(e) => setBrrrRefiRate((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrRefiRate((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -320,7 +403,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrRefiLtv * 100}
-                onChange={(e) => setBrrrRefiLtv((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setBrrrRefiLtv((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -329,7 +414,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={brrrRefiAmortYears}
-                onChange={(e) => setBrrrRefiAmortYears(Number(e.target.value) || 0)}
+                onChange={(e) =>
+                  setBrrrRefiAmortYears(Number(e.target.value) || 0)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -337,11 +424,15 @@ export default function InvestmentCalculators({
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/5 p-4 rounded-xl">
             <div>
               <div className="text-sm text-gray-300">Cash Left In</div>
-              <div className="text-lg font-semibold">{fmtUsd(Math.round(brrrCashLeftIn))}</div>
+              <div className="text-lg font-semibold">
+                {fmtUsd(Math.round(brrrCashLeftIn))}
+              </div>
             </div>
             <div>
               <div className="text-sm text-gray-300">Annual Cash Flow</div>
-              <div className="text-lg font-semibold">{fmtUsd(Math.round(brrrAnnualCashFlow))}</div>
+              <div className="text-lg font-semibold">
+                {fmtUsd(Math.round(brrrAnnualCashFlow))}
+              </div>
             </div>
             <div>
               <div className="text-sm text-gray-300">Cash‑on‑Cash Return</div>
@@ -351,7 +442,7 @@ export default function InvestmentCalculators({
         </div>
       )}
       {/* Flip calculator */}
-      {activeTab === 'flip' && (
+      {activeTab === "flip" && (
         <div className="bg-white/10 p-6 rounded-xl text-white space-y-4">
           <h3 className="text-xl font-semibold">Flip Calculator</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -387,25 +478,35 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={flipDownPayment * 100}
-                onChange={(e) => setFlipDownPayment((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setFlipDownPayment((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
             <div>
-              <label className="block text-sm mb-1">Buy Closing Costs (%)</label>
+              <label className="block text-sm mb-1">
+                Buy Closing Costs (%)
+              </label>
               <input
                 type="number"
                 value={flipClosingBuyPct * 100}
-                onChange={(e) => setFlipClosingBuyPct((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setFlipClosingBuyPct((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
             <div>
-              <label className="block text-sm mb-1">Sell Closing Costs (%)</label>
+              <label className="block text-sm mb-1">
+                Sell Closing Costs (%)
+              </label>
               <input
                 type="number"
                 value={flipClosingSellPct * 100}
-                onChange={(e) => setFlipClosingSellPct((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setFlipClosingSellPct((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -414,7 +515,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={flipHoldingMonths}
-                onChange={(e) => setFlipHoldingMonths(Number(e.target.value) || 0)}
+                onChange={(e) =>
+                  setFlipHoldingMonths(Number(e.target.value) || 0)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -423,7 +526,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={flipInterestRate * 100}
-                onChange={(e) => setFlipInterestRate((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setFlipInterestRate((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -440,7 +545,9 @@ export default function InvestmentCalculators({
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/5 p-4 rounded-xl">
             <div>
               <div className="text-sm text-gray-300">Net Profit</div>
-              <div className="text-lg font-semibold">{fmtUsd(Math.round(flipNetProfit))}</div>
+              <div className="text-lg font-semibold">
+                {fmtUsd(Math.round(flipNetProfit))}
+              </div>
             </div>
             <div>
               <div className="text-sm text-gray-300">ROI</div>
@@ -448,13 +555,15 @@ export default function InvestmentCalculators({
             </div>
             <div>
               <div className="text-sm text-gray-300">Annualized ROI</div>
-              <div className="text-lg font-semibold">{fmtPct(flipAnnualizedRoi)}</div>
+              <div className="text-lg font-semibold">
+                {fmtPct(flipAnnualizedRoi)}
+              </div>
             </div>
           </div>
         </div>
       )}
       {/* Hold calculator */}
-      {activeTab === 'hold' && (
+      {activeTab === "hold" && (
         <div className="bg-white/10 p-6 rounded-xl text-white space-y-4">
           <h3 className="text-xl font-semibold">Buy & Hold Calculator</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -472,7 +581,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={holdDownPayment * 100}
-                onChange={(e) => setHoldDownPayment((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setHoldDownPayment((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -481,7 +592,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={holdClosingPct * 100}
-                onChange={(e) => setHoldClosingPct((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setHoldClosingPct((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -490,7 +603,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={holdInterestRate * 100}
-                onChange={(e) => setHoldInterestRate((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setHoldInterestRate((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -508,7 +623,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={holdVacancy * 100}
-                onChange={(e) => setHoldVacancy((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setHoldVacancy((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -517,7 +634,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={holdMaintenance * 100}
-                onChange={(e) => setHoldMaintenance((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setHoldMaintenance((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -526,7 +645,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={holdCapex * 100}
-                onChange={(e) => setHoldCapex((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setHoldCapex((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -535,7 +656,9 @@ export default function InvestmentCalculators({
               <input
                 type="number"
                 value={holdMgmt * 100}
-                onChange={(e) => setHoldMgmt((Number(e.target.value) || 0) / 100)}
+                onChange={(e) =>
+                  setHoldMgmt((Number(e.target.value) || 0) / 100)
+                }
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
               />
             </div>
@@ -543,7 +666,9 @@ export default function InvestmentCalculators({
           <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white/5 p-4 rounded-xl">
             <div>
               <div className="text-sm text-gray-300">Annual Cash Flow</div>
-              <div className="text-lg font-semibold">{fmtUsd(Math.round(holdAnnualCashFlow))}</div>
+              <div className="text-lg font-semibold">
+                {fmtUsd(Math.round(holdAnnualCashFlow))}
+              </div>
             </div>
             <div>
               <div className="text-sm text-gray-300">Cash‑on‑Cash Return</div>
