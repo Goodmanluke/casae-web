@@ -54,6 +54,21 @@ export default function CMA() {
     }
   };
 
+  const isButtonDisabled = (): boolean => {
+    if (subscriptionLoading || usageLoading || !userId) return true;
+    if (userId && !subscriptionLoading && !subscription) return true;
+    if (userId && subscription && !safeCheckUsageLimit().canUse) return true;
+    return false;
+  };
+
+  const getButtonText = (): string => {
+    if (subscriptionLoading || usageLoading) return "Loading...";
+    if (!userId) return "Login Required";
+    if (!subscription) return "Subscription Required";
+    if (!safeCheckUsageLimit().canUse) return "Limit Reached";
+    return "Run CMA";
+  };
+
   // Adjustment inputs
   const [condition, setCondition] = useState<
     "Poor" | "Fair" | "Good" | "Excellent"
@@ -282,32 +297,14 @@ export default function CMA() {
             />
             <button
               type="submit"
-              disabled={
-                subscriptionLoading ||
-                usageLoading ||
-                !userId ||
-                (userId && subscription && !safeCheckUsageLimit().canUse) ||
-                (userId && !subscriptionLoading && !subscription)
-              }
+              disabled={isButtonDisabled()}
               className={`px-6 py-3 rounded-xl transition text-white font-semibold shadow-lg ${
-                subscriptionLoading ||
-                usageLoading ||
-                !userId ||
-                (userId && subscription && !safeCheckUsageLimit().canUse) ||
-                (userId && !subscriptionLoading && !subscription)
+                isButtonDisabled()
                   ? "bg-gray-500 cursor-not-allowed"
                   : "bg-cyan-500 hover:bg-cyan-600"
               }`}
             >
-              {subscriptionLoading || usageLoading
-                ? "Loading..."
-                : !userId
-                ? "Login Required"
-                : !subscription
-                ? "Subscription Required"
-                : !safeCheckUsageLimit().canUse
-                ? "Limit Reached"
-                : "Run CMA"}
+              {getButtonText()}
             </button>
           </form>
         </div>
