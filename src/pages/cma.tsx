@@ -5,6 +5,8 @@ import type { Comp } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import Navigation from "../components/Navigation";
 import InvestmentCalculators from "../components/InvestmentCalculators";
+import { useSubscription } from "../hooks/useSubscription";
+import { useUsageLimit } from "../hooks/useUsageLimit";
 
 type Tab = "snapshot" | "adjustments" | "result" | "calculators";
 
@@ -15,6 +17,7 @@ export default function CMA() {
   const [baselineData, setBaselineData] = useState<any>(null);
   const [adjustedData, setAdjustedData] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("snapshot");
+  const [userId, setUserId] = useState<string | undefined>(undefined);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -23,12 +26,52 @@ export default function CMA() {
   const [saved, setSaved] = useState(false);
   const [monthlyRent, setMonthlyRent] = useState<number | null>(null);
 
+  const {
+    subscription,
+    loading: subscriptionLoading,
+    isPremium,
+    isPro,
+  } = useSubscription(userId);
+  const {
+    usageRecord,
+    loading: usageLoading,
+    checkUsageLimit,
+    incrementUsage,
+  } = useUsageLimit(userId, subscription?.plan_id || null);
+
+  const getPlanName = () => {
+    if (isPro) return "Pro";
+    if (isPremium) return "Premium";
+    return "Free";
+  };
+
+  const safeCheckUsageLimit = () => {
+    try {
+      return checkUsageLimit();
+    } catch (error) {
+      console.warn("Error checking usage limit:", error);
+      return { canUse: false, usedCount: 0, limit: 0, remaining: 0 };
+    }
+  };
+
   // Adjustment inputs
-  const [condition, setCondition] = useState<"Poor" | "Fair" | "Good" | "Excellent">("Good");
+  const [condition, setCondition] = useState<
+    "Poor" | "Fair" | "Good" | "Excellent"
+  >("Good");
   const [renovations, setRenovations] = useState<string[]>([]);
   const [addBeds, setAddBeds] = useState<number>(0);
   const [addBaths, setAddBaths] = useState<number>(0);
   const [addSqft, setAddSqft] = useState<number>(0);
+
+  useEffect(() => {
+    const getUserId = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setUserId(session?.user?.id);
+    };
+    getUserId();
+  }, []);
 
   // On mount / on query change
   useEffect(() => {
@@ -48,11 +91,38 @@ export default function CMA() {
 
   const fetchBaseline = async (addr: string) => {
     if (!addr) return;
+
+    if (!userId) {
+      setError("Please log in to use the CMA feature.");
+      return;
+    }
+    if (!subscription) {
+      setError(
+        "You need an active Premium or Pro subscription to use the CMA feature. Please upgrade your plan."
+      );
+      return;
+    }
+    const usageCheck = safeCheckUsageLimit();
+    if (!usageCheck.canUse) {
+      setError(
+        `You have reached your monthly CMA limit of ${
+          usageCheck.limit
+        } for your ${getPlanName()} plan. ${
+          !isPro ? "Consider upgrading to Pro for more CMA runs or " : ""
+        }Please wait until next month.`
+      );
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       const data = await cmaBaseline({ subject: { address: addr } } as any);
       setBaselineData(data);
+
+      if (userId) {
+        await incrementUsage();
+      }
 
       // non-blocking rent fetch
       getRentEstimate(addr)
@@ -95,7 +165,9 @@ export default function CMA() {
 
   const toggleRenovation = (renovation: string) => {
     setRenovations((prev) =>
-      prev.includes(renovation) ? prev.filter((r) => r !== renovation) : [...prev, renovation]
+      prev.includes(renovation)
+        ? prev.filter((r) => r !== renovation)
+        : [...prev, renovation]
     );
   };
 
@@ -150,7 +222,8 @@ export default function CMA() {
     if (condition !== "Good") chips.push({ label: condition, color: "blue" });
     renovations.forEach((r) => chips.push({ label: r, color: "green" }));
     if (addBeds > 0) chips.push({ label: `+${addBeds} Bed`, color: "purple" });
-    if (addBaths > 0) chips.push({ label: `+${addBaths} Bath`, color: "purple" });
+    if (addBaths > 0)
+      chips.push({ label: `+${addBaths} Bath`, color: "purple" });
     if (addSqft > 0) chips.push({ label: `+${addSqft} Sqft`, color: "orange" });
     return chips;
   };
@@ -161,7 +234,9 @@ export default function CMA() {
       className="rounded-xl bg-white/10 p-4 text-white backdrop-blur border border-white/10"
     >
       <div className="flex items-start justify-between">
-        <div className="text-sm opacity-80">{isSubject ? "Subject Property" : "Comparable"}</div>
+        <div className="text-sm opacity-80">
+          {isSubject ? "Subject Property" : "Comparable"}
+        </div>
         {typeof comp.similarity === "number" && !isSubject && (
           <div className="text-xs bg-white/20 px-2 py-1 rounded">
             Similarity {(comp.similarity * 100).toFixed(0)}%
@@ -170,7 +245,8 @@ export default function CMA() {
       </div>
       <div className="mt-2 text-lg font-semibold">{comp.address ?? "—"}</div>
       <div className="mt-1 text-sm opacity-90">
-        {comp.beds ?? comp.subject_beds ?? "—"} bd · {comp.baths ?? comp.subject_baths ?? "—"} ba ·{" "}
+        {comp.beds ?? comp.subject_beds ?? "—"} bd ·{" "}
+        {comp.baths ?? comp.subject_baths ?? "—"} ba ·{" "}
         {comp.living_sqft ?? comp.sqft ?? "—"} sqft
       </div>
       <div className="mt-2 text-emerald-200 font-semibold">
@@ -206,16 +282,117 @@ export default function CMA() {
             />
             <button
               type="submit"
-              className="px-6 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 transition text-white font-semibold shadow-lg"
+              disabled={
+                subscriptionLoading ||
+                usageLoading ||
+                !userId ||
+                (userId && subscription && !safeCheckUsageLimit().canUse) ||
+                (userId && !subscriptionLoading && !subscription)
+              }
+              className={`px-6 py-3 rounded-xl transition text-white font-semibold shadow-lg ${
+                subscriptionLoading ||
+                usageLoading ||
+                !userId ||
+                (userId && subscription && !safeCheckUsageLimit().canUse) ||
+                (userId && !subscriptionLoading && !subscription)
+                  ? "bg-gray-500 cursor-not-allowed"
+                  : "bg-cyan-500 hover:bg-cyan-600"
+              }`}
             >
-              Run CMA
+              {subscriptionLoading || usageLoading
+                ? "Loading..."
+                : !userId
+                ? "Login Required"
+                : !subscription
+                ? "Subscription Required"
+                : !safeCheckUsageLimit().canUse
+                ? "Limit Reached"
+                : "Run CMA"}
             </button>
           </form>
         </div>
 
+        {userId && !subscriptionLoading && !usageLoading && subscription && (
+          <div className="mb-6 rounded-xl bg-white/10 p-4 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm opacity-80">CMA Usage This Month</div>
+                <div className="text-lg font-semibold">
+                  {safeCheckUsageLimit().usedCount} /{" "}
+                  {safeCheckUsageLimit().limit} used
+                </div>
+                <div className="text-xs opacity-75">
+                  {safeCheckUsageLimit().remaining} remaining on {getPlanName()}{" "}
+                  plan
+                </div>
+              </div>
+              <div className="text-right">
+                <div
+                  className={`text-sm font-medium ${
+                    safeCheckUsageLimit().canUse
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {safeCheckUsageLimit().canUse ? "Available" : "Limit Reached"}
+                </div>
+                {!safeCheckUsageLimit().canUse && (
+                  <div className="text-xs opacity-75 mt-1">
+                    Resets next month
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <div className="w-full bg-white/20 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    safeCheckUsageLimit().usedCount >=
+                    safeCheckUsageLimit().limit
+                      ? "bg-red-500"
+                      : safeCheckUsageLimit().usedCount >=
+                        safeCheckUsageLimit().limit * 0.8
+                      ? "bg-yellow-500"
+                      : "bg-green-500"
+                  }`}
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      safeCheckUsageLimit().limit > 0
+                        ? (safeCheckUsageLimit().usedCount /
+                            safeCheckUsageLimit().limit) *
+                            100
+                        : 0
+                    )}%`,
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {userId && !subscriptionLoading && !subscription && (
+          <div className="mb-6 rounded-xl bg-orange-500/20 p-4 border border-orange-400/30">
+            <div className="font-semibold text-orange-200">
+              Subscription Required
+            </div>
+            <div className="opacity-90 text-orange-100">
+              You need an active Premium or Pro subscription to use the CMA
+              feature.
+              <a href="/dashboard" className="underline hover:no-underline">
+                Upgrade your plan
+              </a>{" "}
+              to get started.
+            </div>
+          </div>
+        )}
+
         {/* Loading / Error */}
         {loading && (
-          <div className="mb-6 rounded-xl bg-white/10 p-4 border border-white/10">Analyzing property...</div>
+          <div className="mb-6 rounded-xl bg-white/10 p-4 border border-white/10">
+            Analyzing property...
+          </div>
         )}
         {error && (
           <div className="mb-6 rounded-xl bg-red-500/20 p-4 border border-red-400/30">
@@ -231,7 +408,9 @@ export default function CMA() {
               <button
                 onClick={() => setTab("snapshot")}
                 className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  tab === "snapshot" ? "bg-cyan-500 text-white shadow-lg" : "bg-white/20 text-white hover:bg-white/30"
+                  tab === "snapshot"
+                    ? "bg-cyan-500 text-white shadow-lg"
+                    : "bg-white/20 text-white hover:bg-white/30"
                 }`}
               >
                 Snapshot
@@ -239,7 +418,9 @@ export default function CMA() {
               <button
                 onClick={() => setTab("adjustments")}
                 className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  tab === "adjustments" ? "bg-cyan-500 text-white shadow-lg" : "bg-white/20 text-white hover:bg-white/30"
+                  tab === "adjustments"
+                    ? "bg-cyan-500 text-white shadow-lg"
+                    : "bg-white/20 text-white hover:bg-white/30"
                 }`}
               >
                 Adjustments
@@ -247,7 +428,9 @@ export default function CMA() {
               <button
                 onClick={() => setTab("result")}
                 className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  tab === "result" ? "bg-cyan-500 text-white shadow-lg" : "bg-white/20 text-white hover:bg-white/30"
+                  tab === "result"
+                    ? "bg-cyan-500 text-white shadow-lg"
+                    : "bg-white/20 text-white hover:bg-white/30"
                 }`}
               >
                 Result
@@ -255,7 +438,9 @@ export default function CMA() {
               <button
                 onClick={() => setTab("calculators")}
                 className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  tab === "calculators" ? "bg-cyan-500 text-white shadow-lg" : "bg-white/20 text-white hover:bg-white/30"
+                  tab === "calculators"
+                    ? "bg-cyan-500 text-white shadow-lg"
+                    : "bg-white/20 text-white hover:bg-white/30"
                 }`}
               >
                 Calculators
@@ -268,7 +453,9 @@ export default function CMA() {
                 {/* AI Narrative */}
                 {baselineData.explanation && (
                   <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-lg font-semibold mb-1">AI Analysis</div>
+                    <div className="text-lg font-semibold mb-1">
+                      AI Analysis
+                    </div>
                     <div className="opacity-90">{baselineData.explanation}</div>
                   </div>
                 )}
@@ -276,7 +463,9 @@ export default function CMA() {
                 {/* Subject Property */}
                 {baselineData.subject && (
                   <div className="space-y-3">
-                    <div className="text-lg font-semibold">Subject Property</div>
+                    <div className="text-lg font-semibold">
+                      Subject Property
+                    </div>
                     {renderPropertyCard(
                       {
                         id: "subject",
@@ -299,27 +488,38 @@ export default function CMA() {
                   <div className="rounded-xl bg-white/10 p-4 border border-white/10">
                     <div className="text-sm opacity-80">Estimated Value</div>
                     <div className="text-2xl font-bold">
-                      {baselineData.estimate ? `$${baselineData.estimate.toLocaleString()}` : "—"}
+                      {baselineData.estimate
+                        ? `$${baselineData.estimate.toLocaleString()}`
+                        : "—"}
                     </div>
                     <div className="text-xs opacity-75 mt-1">Baseline CMA</div>
                   </div>
                   <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80">Estimated Monthly Rent</div>
+                    <div className="text-sm opacity-80">
+                      Estimated Monthly Rent
+                    </div>
                     <div className="text-2xl font-bold">
-                      {monthlyRent !== null ? `$${monthlyRent.toLocaleString()}` : "—"}
+                      {monthlyRent !== null
+                        ? `$${monthlyRent.toLocaleString()}`
+                        : "—"}
                     </div>
                   </div>
                 </div>
 
                 {/* Comparables */}
-                {Array.isArray(baselineData.comps) && baselineData.comps.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="text-lg font-semibold">Comparable Properties</div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {baselineData.comps.map((comp: Comp, idx: number) => renderPropertyCard(comp))}
+                {Array.isArray(baselineData.comps) &&
+                  baselineData.comps.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold">
+                        Comparable Properties
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {baselineData.comps.map((comp: Comp, idx: number) =>
+                          renderPropertyCard(comp)
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 <div className="flex gap-3 mt-4">
                   <button
@@ -342,7 +542,9 @@ export default function CMA() {
             {tab === "adjustments" && (
               <div className="space-y-6">
                 <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                  <div className="text-lg font-semibold mb-3">Adjust Property</div>
+                  <div className="text-lg font-semibold mb-3">
+                    Adjust Property
+                  </div>
 
                   {/* Condition */}
                   <label className="block text-sm mb-1">Condition</label>
@@ -361,16 +563,23 @@ export default function CMA() {
                   <div className="mt-4">
                     <div className="text-sm mb-2">Renovations</div>
                     <div className="flex flex-wrap gap-3">
-                      {["Kitchen", "Bath", "Flooring", "Roof", "Windows"].map((opt) => (
-                        <label key={opt} className="inline-flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={renovations.includes(opt.toLowerCase())}
-                            onChange={() => toggleRenovation(opt.toLowerCase())}
-                          />
-                          {opt}
-                        </label>
-                      ))}
+                      {["Kitchen", "Bath", "Flooring", "Roof", "Windows"].map(
+                        (opt) => (
+                          <label
+                            key={opt}
+                            className="inline-flex items-center gap-2"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={renovations.includes(opt.toLowerCase())}
+                              onChange={() =>
+                                toggleRenovation(opt.toLowerCase())
+                              }
+                            />
+                            {opt}
+                          </label>
+                        )
+                      )}
                     </div>
                   </div>
 
@@ -441,16 +650,24 @@ export default function CMA() {
                   <div className="rounded-xl bg-white/10 p-4 border border-white/10">
                     <div className="text-sm opacity-80">Baseline Value</div>
                     <div className="text-2xl font-bold">
-                      {baselineData.estimate ? `$${baselineData.estimate.toLocaleString()}` : "—"}
+                      {baselineData.estimate
+                        ? `$${baselineData.estimate.toLocaleString()}`
+                        : "—"}
                     </div>
-                    <div className="text-xs opacity-75 mt-1">Original Estimate</div>
+                    <div className="text-xs opacity-75 mt-1">
+                      Original Estimate
+                    </div>
                   </div>
                   <div className="rounded-xl bg-white/10 p-4 border border-white/10">
                     <div className="text-sm opacity-80">Adjusted Value</div>
                     <div className="text-2xl font-bold">
-                      {adjustedData.estimate ? `$${adjustedData.estimate.toLocaleString()}` : "—"}
+                      {adjustedData.estimate
+                        ? `$${adjustedData.estimate.toLocaleString()}`
+                        : "—"}
                     </div>
-                    <div className="text-xs opacity-75 mt-1">After Adjustments</div>
+                    <div className="text-xs opacity-75 mt-1">
+                      After Adjustments
+                    </div>
                   </div>
                 </div>
 
@@ -460,10 +677,17 @@ export default function CMA() {
                   <div className="text-xl font-semibold">
                     {baselineData?.estimate && adjustedData?.estimate ? (
                       <>
-                        {adjustedData.estimate > baselineData.estimate ? "+" : "-"}$
-                        {Math.abs(adjustedData.estimate - baselineData.estimate).toLocaleString()} (
+                        {adjustedData.estimate > baselineData.estimate
+                          ? "+"
+                          : "-"}
+                        $
+                        {Math.abs(
+                          adjustedData.estimate - baselineData.estimate
+                        ).toLocaleString()}{" "}
+                        (
                         {(
-                          ((adjustedData.estimate - baselineData.estimate) / baselineData.estimate) *
+                          ((adjustedData.estimate - baselineData.estimate) /
+                            baselineData.estimate) *
                           100
                         ).toFixed(1)}
                         %)
@@ -475,14 +699,19 @@ export default function CMA() {
                 </div>
 
                 {/* Updated comps */}
-                {Array.isArray(adjustedData.comps) && adjustedData.comps.length > 0 && (
-                  <div className="space-y-3">
-                    <div className="text-lg font-semibold">Updated Comparables</div>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {adjustedData.comps.map((comp: Comp, idx: number) => renderPropertyCard(comp))}
+                {Array.isArray(adjustedData.comps) &&
+                  adjustedData.comps.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="text-lg font-semibold">
+                        Updated Comparables
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {adjustedData.comps.map((comp: Comp, idx: number) =>
+                          renderPropertyCard(comp)
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 <div className="flex gap-3 mt-2">
                   <button
@@ -508,7 +737,8 @@ export default function CMA() {
         {/* Initial state */}
         {!baselineData && !loading && !error && (
           <div className="rounded-xl bg-white/10 p-6 border border-white/10 text-center">
-            Enter an address above, then click <span className="font-semibold">Run CMA</span>.
+            Enter an address above, then click{" "}
+            <span className="font-semibold">Run CMA</span>.
           </div>
         )}
       </div>
