@@ -25,6 +25,9 @@ export default function CMA() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [monthlyRent, setMonthlyRent] = useState<number | null>(null);
+  const [adjustedMonthlyRent, setAdjustedMonthlyRent] = useState<number | null>(
+    null
+  );
 
   const {
     subscription,
@@ -503,7 +506,6 @@ export default function CMA() {
                   </div>
                 </div>
 
-                {/* Comparables */}
                 {Array.isArray(baselineData.comps) &&
                   baselineData.comps.length > 0 && (
                     <div className="space-y-3">

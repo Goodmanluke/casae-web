@@ -49,12 +49,12 @@ const PlansPage = () => {
       description: "Perfect for real estate professionals",
       features: [
         "Everything in Pro",
+        "50 CMA Reports",
         "Advanced Investment Analytics",
         "Market Trend Analysis",
         "Priority Support",
         "Custom Reports",
         "API Access",
-        "Team Collaboration",
       ],
       color: "from-emerald-500 to-teal-600",
       popular: true,
@@ -62,11 +62,11 @@ const PlansPage = () => {
     {
       id: "pro-plan",
       name: "Pro",
-      price: 69.99,
+      price: 79.99,
       description: "Perfect for serious investors",
       features: [
         "Investment Calculators (BRRR, Flip, Buy & Hold)",
-        "Unlimited CMA Reports",
+        "200 CMA Reports",
         "PDF Downloads",
         "Email Support",
         "Basic Analytics",
