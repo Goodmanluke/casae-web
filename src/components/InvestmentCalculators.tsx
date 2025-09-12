@@ -31,6 +31,7 @@ interface InvestmentCalculatorsProps {
   baselineData: CMAData;
   adjustedData?: CMAData | null;
   monthlyRent?: number | null;
+  adjustedMonthlyRent?: number | null;
 }
 
 // Helper to compute a loan payment. Formula: r*L/(1-(1+r)^-n)
@@ -49,12 +50,13 @@ export default function InvestmentCalculators({
   baselineData,
   adjustedData,
   monthlyRent,
+  adjustedMonthlyRent,
 }: InvestmentCalculatorsProps) {
   const [activeTab, setActiveTab] = useState<"brrr" | "flip" | "hold">("brrr");
   // Prefill values from CMA
   const purchasePrice = baselineData?.estimate ?? 0;
   const arvValue = adjustedData?.estimate ?? purchasePrice;
-  const estRent = monthlyRent ?? 0;
+  const estRent = adjustedMonthlyRent ?? monthlyRent ?? 0;
 
   // Retrieve userId to check subscription status
   const [userId, setUserId] = useState<string | undefined>(undefined);

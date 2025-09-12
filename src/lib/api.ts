@@ -1,18 +1,15 @@
 // src/lib/api.ts
 
-import type {
-  CMAInput,
-  AdjustmentInput,
-  Comp,
-  CMAResponse,
-} from "./types";
+import type { CMAInput, AdjustmentInput, Comp, CMAResponse } from "./types";
 
 // Re-export types so other files (e.g. cma.tsx) can import them from this module.
 export type { CMAInput, AdjustmentInput, Comp, CMAResponse };
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
-  (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+  (typeof window !== "undefined" &&
+  window.location.hostname !== "localhost" &&
+  window.location.hostname !== "127.0.0.1"
     ? "https://api.casae.app"
     : "http://localhost:8000");
 
@@ -39,18 +36,21 @@ function toQS(params: Record<string, any>): string {
 async function request<T>(url: string, init: RequestInit): Promise<T> {
   console.log(`[API] Making request to: ${url}`);
   console.log(`[API] Request init:`, init);
-  
+
   try {
     const res = await fetch(url, init);
     console.log(`[API] Response status: ${res.status}`);
-    console.log(`[API] Response headers:`, Object.fromEntries(res.headers.entries()));
-    
+    console.log(
+      `[API] Response headers:`,
+      Object.fromEntries(res.headers.entries())
+    );
+
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       console.error(`[API] Request failed: ${res.status} - ${text}`);
       throw new Error(text || `Request failed (${res.status})`);
     }
-    
+
     const data = await res.json();
     console.log(`[API] Response data:`, data);
     return data as T;
@@ -64,27 +64,19 @@ async function request<T>(url: string, init: RequestInit): Promise<T> {
  * Fetch a baseline CMA (POST /cma/baseline).
  */
 export async function cmaBaseline(input: CMAInput): Promise<CMAResponse> {
-
   return request<CMAResponse>(`${API_BASE}/cma/baseline`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  
 }
 
 /**
  * Apply adjustments to an existing CMA run (GET /cma/adjust).
  */
 export async function cmaAdjust(input: AdjustmentInput): Promise<CMAResponse> {
-  const {
-    cma_run_id,
-    condition,
-    renovations,
-    add_beds,
-    add_baths,
-    add_sqft,
-  } = input;
+  const { cma_run_id, condition, renovations, add_beds, add_baths, add_sqft } =
+    input;
 
   const qs = toQS({
     cma_run_id,
@@ -115,22 +107,28 @@ export async function cmaSummary(body: unknown): Promise<{ summary: string }> {
 /**
  * Download a PDF report for a CMA run (GET /pdfx).
  */
-export async function cmaPdf(cma_run_id: string, opts?: { adjusted?: boolean }): Promise<void> {
+export async function cmaPdf(
+  cma_run_id: string,
+  opts?: { adjusted?: boolean }
+): Promise<void> {
   const qsId = encodeURIComponent(cma_run_id);
-  const qAdj = opts?.adjusted ? '&adjusted=1' : '';
+  const qAdj = opts?.adjusted ? "&adjusted=1" : "";
   const url = `${API_BASE}/pdfx?cma_run_id=${qsId}${qAdj}`;
 
-  const popup = window.open(url, '_blank');
+  const popup = window.open(url, "_blank");
   if (popup) return;
 
-  const response = await fetch(url, { method: 'GET', mode: 'cors' });
-  if (!response.ok) throw new Error(`Failed to generate PDF: ${response.status}`);
+  const response = await fetch(url, { method: "GET", mode: "cors" });
+  if (!response.ok)
+    throw new Error(`Failed to generate PDF: ${response.status}`);
 
   const pdfBlob = await response.blob();
   const objectUrl = window.URL.createObjectURL(pdfBlob);
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = objectUrl;
-  link.download = `cma_report_${cma_run_id}${opts?.adjusted ? '_adjusted' : ''}.pdf`;
+  link.download = `cma_report_${cma_run_id}${
+    opts?.adjusted ? "_adjusted" : ""
+  }.pdf`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -140,9 +138,29 @@ export async function cmaPdf(cma_run_id: string, opts?: { adjusted?: boolean }):
 /**
  * Get monthly rent estimate for an address (GET /rent/estimate)
  */
-export async function getRentEstimate(address: string): Promise<{ monthly_rent: number | null }> {
-  const qs = new URLSearchParams({ address }).toString();
-  return request<{ monthly_rent: number | null }>(`${API_BASE}/rent/estimate?${qs}`, {
-    method: "GET",
-  });
+export async function getRentEstimate(
+  address: string,
+  propertyDetails?: {
+    bedrooms?: number;
+    bathrooms?: number;
+    squareFootage?: number;
+    propertyType?: string;
+  }
+): Promise<{ monthly_rent: number | null }> {
+  const params: Record<string, any> = { address };
+
+  if (propertyDetails?.bedrooms) params.bedrooms = propertyDetails.bedrooms;
+  if (propertyDetails?.bathrooms) params.bathrooms = propertyDetails.bathrooms;
+  if (propertyDetails?.squareFootage)
+    params.squareFootage = propertyDetails.squareFootage;
+  if (propertyDetails?.propertyType)
+    params.propertyType = propertyDetails.propertyType;
+
+  const qs = toQS(params);
+  return request<{ monthly_rent: number | null }>(
+    `${API_BASE}/rent/estimate?${qs}`,
+    {
+      method: "GET",
+    }
+  );
 }

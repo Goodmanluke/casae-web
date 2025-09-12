@@ -2,6 +2,7 @@ export type Subject = {
   address: string;
   lat?: number;
   lng?: number;
+  property_type?: string;
   beds?: number;
   baths?: number;
   sqft?: number;
@@ -17,14 +18,12 @@ export type CMAInput = {
 };
 
 export type AdjustmentInput = {
-  
   cma_run_id: string;
   condition?: string;
   renovations?: string[];
   add_beds?: number;
   add_baths?: number;
   add_sqft?: number;
-  
 };
 
 export type Comp = {
@@ -32,7 +31,7 @@ export type Comp = {
   address: string;
   raw_price: number;
   living_sqft: number;
-    price?: number;
+  price?: number;
   sqft?: number;
   beds: number;
   baths: number;
@@ -45,8 +44,8 @@ export type Comp = {
 
 export type CMAResponse = {
   estimate: number;
-   subject: Subject;
-  
+  subject: Subject;
+
   comps: Comp[];
   explanation: string;
   cma_run_id: string;

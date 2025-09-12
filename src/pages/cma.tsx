@@ -142,12 +142,24 @@ export default function CMA() {
         await incrementUsage();
       }
 
-      // non-blocking rent fetch
-      getRentEstimate(addr)
-        .then((r) => setMonthlyRent(r?.monthly_rent ?? null))
-        .catch(() => setMonthlyRent(null));
+      if (data.subject) {
+        const propertyDetails = {
+          bedrooms: data.subject.beds,
+          bathrooms: data.subject.baths,
+          squareFootage: data.subject.sqft,
+          propertyType: data.subject.property_type,
+        };
+        getRentEstimate(addr, propertyDetails)
+          .then((r) => setMonthlyRent(r?.monthly_rent ?? null))
+          .catch(() => setMonthlyRent(null));
+      } else {
+        getRentEstimate(addr)
+          .then((r) => setMonthlyRent(r?.monthly_rent ?? null))
+          .catch(() => setMonthlyRent(null));
+      }
 
       setAdjustedData(null);
+      setAdjustedMonthlyRent(null);
       setSaved(false);
       setTab("snapshot");
     } catch (err: any) {
@@ -172,6 +184,26 @@ export default function CMA() {
         add_sqft: addSqft,
       });
       setAdjustedData(data);
+
+      if (data.subject?.address) {
+        try {
+          const adjustedPropertyDetails = {
+            bedrooms: data.subject.beds,
+            bathrooms: data.subject.baths,
+            squareFootage: data.subject.sqft,
+            propertyType: data.subject.property_type,
+          };
+          const rentData = await getRentEstimate(
+            data.subject.address,
+            adjustedPropertyDetails
+          );
+          setAdjustedMonthlyRent(rentData?.monthly_rent ?? null);
+        } catch (rentErr) {
+          console.warn("Failed to fetch adjusted rent estimate:", rentErr);
+          setAdjustedMonthlyRent(null);
+        }
+      }
+
       setTab("result");
     } catch (err: any) {
       console.error("Adjust failed:", err);
@@ -650,7 +682,7 @@ export default function CMA() {
                     <div className="text-sm opacity-80">Baseline Value</div>
                     <div className="text-2xl font-bold">
                       {baselineData.estimate
-                        ? `$${baselineData.estimate.toLocaleString()}`
+                        ? `${baselineData.estimate.toLocaleString()}`
                         : "—"}
                     </div>
                     <div className="text-xs opacity-75 mt-1">
@@ -661,7 +693,7 @@ export default function CMA() {
                     <div className="text-sm opacity-80">Adjusted Value</div>
                     <div className="text-2xl font-bold">
                       {adjustedData.estimate
-                        ? `$${adjustedData.estimate.toLocaleString()}`
+                        ? `${adjustedData.estimate.toLocaleString()}`
                         : "—"}
                     </div>
                     <div className="text-xs opacity-75 mt-1">
@@ -670,30 +702,88 @@ export default function CMA() {
                   </div>
                 </div>
 
-                {/* Value Change */}
-                <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                  <div className="text-sm opacity-80 mb-1">Value Change</div>
-                  <div className="text-xl font-semibold">
-                    {baselineData?.estimate && adjustedData?.estimate ? (
-                      <>
-                        {adjustedData.estimate > baselineData.estimate
-                          ? "+"
-                          : "-"}
-                        $
-                        {Math.abs(
-                          adjustedData.estimate - baselineData.estimate
-                        ).toLocaleString()}{" "}
-                        (
-                        {(
-                          ((adjustedData.estimate - baselineData.estimate) /
-                            baselineData.estimate) *
-                          100
-                        ).toFixed(1)}
-                        %)
-                      </>
-                    ) : (
-                      "—"
-                    )}
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
+                    <div className="text-sm opacity-80">
+                      Baseline Monthly Rent
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {monthlyRent !== null
+                        ? `${monthlyRent.toLocaleString()}`
+                        : "—"}
+                    </div>
+                    <div className="text-xs opacity-75 mt-1">
+                      Original Estimate
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
+                    <div className="text-sm opacity-80">
+                      Adjusted Monthly Rent
+                    </div>
+                    <div className="text-2xl font-bold">
+                      {adjustedMonthlyRent !== null
+                        ? `${adjustedMonthlyRent.toLocaleString()}`
+                        : monthlyRent !== null
+                        ? `${monthlyRent.toLocaleString()}`
+                        : "—"}
+                    </div>
+                    <div className="text-xs opacity-75 mt-1">
+                      {adjustedMonthlyRent !== null
+                        ? "After Adjustments"
+                        : "No Change"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
+                    <div className="text-sm opacity-80 mb-1">Value Change</div>
+                    <div className="text-xl font-semibold">
+                      {baselineData?.estimate && adjustedData?.estimate ? (
+                        <>
+                          {adjustedData.estimate > baselineData.estimate
+                            ? "+"
+                            : "-"}
+                          $
+                          {Math.abs(
+                            adjustedData.estimate - baselineData.estimate
+                          ).toLocaleString()}{" "}
+                          (
+                          {(
+                            ((adjustedData.estimate - baselineData.estimate) /
+                              baselineData.estimate) *
+                            100
+                          ).toFixed(1)}
+                          %)
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
+                    <div className="text-sm opacity-80 mb-1">Rent Change</div>
+                    <div className="text-xl font-semibold">
+                      {monthlyRent !== null &&
+                      adjustedMonthlyRent !== null &&
+                      adjustedMonthlyRent !== monthlyRent ? (
+                        <>
+                          {adjustedMonthlyRent > monthlyRent ? "+" : "-"}$
+                          {Math.abs(
+                            adjustedMonthlyRent - monthlyRent
+                          ).toLocaleString()}{" "}
+                          (
+                          {(
+                            ((adjustedMonthlyRent - monthlyRent) /
+                              monthlyRent) *
+                            100
+                          ).toFixed(1)}
+                          %)
+                        </>
+                      ) : (
+                        "No Change"
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -728,6 +818,7 @@ export default function CMA() {
                 baselineData={baselineData}
                 adjustedData={adjustedData}
                 monthlyRent={monthlyRent}
+                adjustedMonthlyRent={adjustedMonthlyRent}
               />
             )}
           </>
