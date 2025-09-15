@@ -96,13 +96,13 @@ export default function Properties() {
   // Handler functions
   const handleViewProperty = (property: any) => {
     if (property.address) {
-      router.push(`/cma?address=${encodeURIComponent(property.address)}`);
+      router.push(`/cma?address=${encodeURIComponent(property.address)}&saved=true`);
     }
   };
 
   const handleEditProperty = (property: any) => {
     if (property.address) {
-      router.push(`/cma?address=${encodeURIComponent(property.address)}&tab=adjustments`);
+      router.push(`/cma?address=${encodeURIComponent(property.address)}&tab=adjustments&saved=true`);
     }
   };
 

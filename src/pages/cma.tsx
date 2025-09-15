@@ -14,6 +14,10 @@ export default function CMA() {
   const { query } = useRouter();
 
   const [address, setAddress] = useState("");
+  const [addressFromUrl, setAddressFromUrl] = useState(false);
+  const [isViewingSavedProperty, setIsViewingSavedProperty] = useState(false);
+  const [hasProcessedUrlParams, setHasProcessedUrlParams] = useState(false);
+  const [checkedIfSavedProperty, setCheckedIfSavedProperty] = useState(false);
   const [baselineData, setBaselineData] = useState<any>(null);
   const [adjustedData, setAdjustedData] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("snapshot");
@@ -24,6 +28,11 @@ export default function CMA() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveModalMessage, setSaveModalMessage] = useState("");
+  const [saveModalType, setSaveModalType] = useState<
+    "success" | "error" | "login"
+  >("success");
   const [monthlyRent, setMonthlyRent] = useState<number | null>(null);
   const [adjustedMonthlyRent, setAdjustedMonthlyRent] = useState<number | null>(
     null
@@ -58,16 +67,19 @@ export default function CMA() {
   };
 
   const isButtonDisabled = (): boolean => {
+    if (loading) return true;
     if (subscriptionLoading || usageLoading || !userId) return true;
-    if (userId && !subscriptionLoading && !subscription) return true;
+    if (userId && !subscriptionLoading && !subscription && !isPremium && !isPro)
+      return true;
     if (userId && subscription && !safeCheckUsageLimit().canUse) return true;
     return false;
   };
 
   const getButtonText = (): string => {
+    if (loading) return "Analyzing...";
     if (subscriptionLoading || usageLoading) return "Loading...";
     if (!userId) return "Login Required";
-    if (!subscription) return "Subscription Required";
+    if (!subscription && !isPremium && !isPro) return "Subscription Required";
     if (!safeCheckUsageLimit().canUse) return "Limit Reached";
     return "Run CMA";
   };
@@ -81,6 +93,58 @@ export default function CMA() {
   const [addBaths, setAddBaths] = useState<number>(0);
   const [addSqft, setAddSqft] = useState<number>(0);
 
+  // Check if address is a saved property when saved=true is not in URL
+  const checkIfSavedProperty = async (address: string) => {
+    if (!userId || !address) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from("properties")
+        .select("address")
+        .eq("user_id", userId)
+        .eq("address", address)
+        .limit(1);
+
+      if (error) {
+        console.error("Error checking saved property:", error);
+        return false;
+      }
+
+      return data && data.length > 0;
+    } catch (error) {
+      console.error("Error checking saved property:", error);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (
+        userId &&
+        address &&
+        addressFromUrl &&
+        hasProcessedUrlParams &&
+        !isViewingSavedProperty &&
+        !checkedIfSavedProperty
+      ) {
+        const isSaved = await checkIfSavedProperty(address);
+        if (isSaved) {
+          setIsViewingSavedProperty(true);
+        }
+        setCheckedIfSavedProperty(true);
+      }
+    };
+
+    checkSavedStatus();
+  }, [
+    userId,
+    address,
+    addressFromUrl,
+    hasProcessedUrlParams,
+    isViewingSavedProperty,
+    checkedIfSavedProperty,
+  ]);
+
   useEffect(() => {
     const getUserId = async () => {
       const {
@@ -91,45 +155,92 @@ export default function CMA() {
     getUserId();
   }, []);
 
-  // On mount / on query change
   useEffect(() => {
-    // Address bootstrap
+    let shouldSetAddressFromUrl = false;
+    let shouldSetIsViewingSaved = false;
     if (typeof query.address === "string" && query.address.trim().length > 0) {
       setAddress(query.address);
-      fetchBaseline(query.address);
+      shouldSetAddressFromUrl = true;
     }
-    // Tab bootstrap
+    if (typeof query.saved === "string" && query.saved === "true") {
+      shouldSetIsViewingSaved = true;
+    }
+    setAddressFromUrl(shouldSetAddressFromUrl);
+    setIsViewingSavedProperty(shouldSetIsViewingSaved);
+    setHasProcessedUrlParams(true);
+    setCheckedIfSavedProperty(shouldSetIsViewingSaved);
     if (
       typeof query.tab === "string" &&
       ["snapshot", "adjustments", "result", "calculators"].includes(query.tab)
     ) {
       setTab(query.tab as Tab);
     }
-  }, [query.address, query.tab]);
+  }, [query.address, query.tab, query.saved]);
 
-  const fetchBaseline = async (addr: string) => {
+  useEffect(() => {
+    if (
+      userId &&
+      address.trim().length > 0 &&
+      addressFromUrl &&
+      hasProcessedUrlParams &&
+      checkedIfSavedProperty &&
+      !baselineData &&
+      !subscriptionLoading &&
+      !usageLoading &&
+      (subscription || isPremium || isPro)
+    ) {
+      fetchBaseline(address, isViewingSavedProperty);
+      setAddressFromUrl(false);
+    }
+  }, [
+    userId,
+    address,
+    addressFromUrl,
+    hasProcessedUrlParams,
+    checkedIfSavedProperty,
+    baselineData,
+    subscriptionLoading,
+    usageLoading,
+    subscription,
+    isPremium,
+    isPro,
+    isViewingSavedProperty,
+  ]);
+
+  const fetchBaseline = async (
+    addr: string,
+    skipUsageIncrement: boolean = false
+  ) => {
     if (!addr) return;
 
     if (!userId) {
       setError("Please log in to use the CMA feature.");
       return;
     }
-    if (!subscription) {
+
+    if (subscriptionLoading) {
+      return;
+    }
+
+    if (!subscription && !isPremium && !isPro) {
       setError(
         "You need an active Premium or Pro subscription to use the CMA feature. Please upgrade your plan."
       );
       return;
     }
-    const usageCheck = safeCheckUsageLimit();
-    if (!usageCheck.canUse) {
-      setError(
-        `You have reached your monthly CMA limit of ${
-          usageCheck.limit
-        } for your ${getPlanName()} plan. ${
-          !isPro ? "Consider upgrading to Pro for more CMA runs or " : ""
-        }Please wait until next month.`
-      );
-      return;
+
+    if (!skipUsageIncrement) {
+      const usageCheck = safeCheckUsageLimit();
+      if (!usageCheck.canUse) {
+        setError(
+          `You have reached your monthly CMA limit of ${
+            usageCheck.limit
+          } for your ${getPlanName()} plan. ${
+            !isPro ? "Consider upgrading to Pro for more CMA runs or " : ""
+          }Please wait until next month.`
+        );
+        return;
+      }
     }
 
     setLoading(true);
@@ -138,7 +249,7 @@ export default function CMA() {
       const data = await cmaBaseline({ subject: { address: addr } } as any);
       setBaselineData(data);
 
-      if (userId) {
+      if (userId && !skipUsageIncrement) {
         await incrementUsage();
       }
 
@@ -227,7 +338,9 @@ export default function CMA() {
       await cmaPdf(baselineData.cma_run_id, { adjusted: useAdjusted });
     } catch (err) {
       console.error("PDF failed:", err);
-      alert("Could not start PDF download.");
+      setSaveModalType("error");
+      setSaveModalMessage("Could not start PDF download. Please try again.");
+      setShowSaveModal(true);
     }
   };
 
@@ -238,7 +351,9 @@ export default function CMA() {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user?.id;
       if (!userId) {
-        alert("Please login to save properties.");
+        setSaveModalType("login");
+        setSaveModalMessage("Please login to save properties.");
+        setShowSaveModal(true);
         return;
       }
       const s = baselineData.subject || {};
@@ -258,10 +373,14 @@ export default function CMA() {
       ]);
       if (error) throw error;
       setSaved(true);
-      alert("Property saved.");
+      setSaveModalType("success");
+      setSaveModalMessage("Property saved successfully!");
+      setShowSaveModal(true);
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || "Failed to save property");
+      setSaveModalType("error");
+      setSaveModalMessage(e?.message || "Failed to save property");
+      setShowSaveModal(true);
     } finally {
       setSaving(false);
     }
@@ -314,13 +433,12 @@ export default function CMA() {
       <Navigation />
 
       <div className="max-w-6xl mx-auto px-4 py-8 text-white">
-        {/* Address bar */}
         <div className="mb-6">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (!address.trim()) return;
-              fetchBaseline(address.trim());
+              fetchBaseline(address.trim(), false); // Always increment usage for manual runs
             }}
             className="flex gap-3"
           >
@@ -328,7 +446,13 @@ export default function CMA() {
               className="flex-1 bg-white/90 text-gray-800 p-3 rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
               placeholder="Enter property address"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setAddressFromUrl(false);
+                setIsViewingSavedProperty(false);
+                setHasProcessedUrlParams(false);
+                setCheckedIfSavedProperty(false);
+              }}
             />
             <button
               type="submit"
@@ -404,21 +528,25 @@ export default function CMA() {
           </div>
         )}
 
-        {userId && !subscriptionLoading && !subscription && (
-          <div className="mb-6 rounded-xl bg-orange-500/20 p-4 border border-orange-400/30">
-            <div className="font-semibold text-orange-200">
-              Subscription Required
+        {userId &&
+          !subscriptionLoading &&
+          !subscription &&
+          !isPremium &&
+          !isPro && (
+            <div className="mb-6 rounded-xl bg-orange-500/20 p-4 border border-orange-400/30">
+              <div className="font-semibold text-orange-200">
+                Subscription Required
+              </div>
+              <div className="opacity-90 text-orange-100">
+                You need an active Premium or Pro subscription to use the CMA
+                feature.
+                <a href="/dashboard" className="underline hover:no-underline">
+                  Upgrade your plan
+                </a>{" "}
+                to get started.
+              </div>
             </div>
-            <div className="opacity-90 text-orange-100">
-              You need an active Premium or Pro subscription to use the CMA
-              feature.
-              <a href="/dashboard" className="underline hover:no-underline">
-                Upgrade your plan
-              </a>{" "}
-              to get started.
-            </div>
-          </div>
-        )}
+          )}
 
         {/* Loading / Error */}
         {loading && (
@@ -665,9 +793,14 @@ export default function CMA() {
                   <div className="mt-5">
                     <button
                       onClick={applyAdjustments}
-                      className="px-6 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 transition text-white font-semibold shadow-lg"
+                      disabled={loading}
+                      className={`px-6 py-3 rounded-xl font-semibold shadow-lg transition ${
+                        loading
+                          ? "bg-gray-500 cursor-not-allowed text-white"
+                          : "bg-cyan-500 hover:bg-cyan-600 text-white"
+                      }`}
                     >
-                      Apply Adjustments
+                      {loading ? "Applying..." : "Apply Adjustments"}
                     </button>
                   </div>
                 </div>
@@ -832,6 +965,109 @@ export default function CMA() {
           </div>
         )}
       </div>
+
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mb-4">
+                {saveModalType === "success" && (
+                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M5 13l4 4L19 7"
+                      ></path>
+                    </svg>
+                  </div>
+                )}
+                {saveModalType === "error" && (
+                  <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      ></path>
+                    </svg>
+                  </div>
+                )}
+                {saveModalType === "login" && (
+                  <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      ></path>
+                    </svg>
+                  </div>
+                )}
+              </div>
+
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                {saveModalType === "success" && "Property Saved!"}
+                {saveModalType === "error" && "Save Failed"}
+                {saveModalType === "login" && "Login Required"}
+              </h3>
+
+              <p className="text-gray-600 mb-6">{saveModalMessage}</p>
+
+              <div className="flex gap-3 justify-center">
+                {saveModalType === "login" ? (
+                  <>
+                    <button
+                      onClick={() => setShowSaveModal(false)}
+                      className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowSaveModal(false);
+                        window.location.href = "/login";
+                      }}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                    >
+                      Go to Login
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowSaveModal(false)}
+                    className={`px-6 py-2 rounded-lg transition ${
+                      saveModalType === "success"
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-red-600 hover:bg-red-700 text-white"
+                    }`}
+                  >
+                    {saveModalType === "success" ? "Great!" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

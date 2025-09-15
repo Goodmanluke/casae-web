@@ -42,9 +42,6 @@ export function useSubscription(userId: string | undefined) {
         .eq("status", "active")
         .maybeSingle();
 
-      console.log("data", data);
-      console.log("error", error);
-
       if (error && error.code !== "PGRST116") {
         throw error;
       }
