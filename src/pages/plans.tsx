@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
 import Navigation from "../components/Navigation";
+import Notification from "../components/Notification";
 import { useSubscription } from "../hooks/useSubscription";
 
 const PlansPage = () => {
@@ -9,8 +10,11 @@ const PlansPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | undefined>();
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: "success" | "error" | "info" | "warning";
+  } | null>(null);
 
-  // Get subscription status
   const {
     subscription,
     loading: subLoading,
@@ -19,9 +23,10 @@ const PlansPage = () => {
     isTrialing,
     isPastDue,
     hasProAccess,
+    changePlan,
+    getAvailablePlans,
   } = useSubscription(userId);
 
-  // Check for user session
   useEffect(() => {
     const fetchSession = async () => {
       if (!supabase) {
@@ -157,7 +162,38 @@ const PlansPage = () => {
     }
   };
 
-  // Calculate days remaining for active subscription
+  const handlePlanChange = async (
+    planId: string,
+    action: "upgrade" | "downgrade"
+  ) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await changePlan(planId, action);
+
+      if (action === "upgrade") {
+        alert("Plan upgraded successfully! Changes are effective immediately.");
+      } else {
+        alert(
+          "Plan will be downgraded at the end of your current billing period."
+        );
+      }
+
+      window.location.reload();
+    } catch (err) {
+      console.error("Plan change error:", err);
+      setNotification({
+        message:
+          "Failed to change plan: " +
+          (err instanceof Error ? err.message : "Unknown error"),
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculateDaysRemaining = (endDate: string) => {
     const end = new Date(endDate);
     const now = new Date();
@@ -170,6 +206,14 @@ const PlansPage = () => {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
+      {notification && (
+        <Notification
+          message={notification.message}
+          type={notification.type}
+          onClose={() => setNotification(null)}
+        />
+      )}
+
       <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900">
         <div className="absolute top-20 left-20 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute top-40 right-32 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
@@ -197,12 +241,29 @@ const PlansPage = () => {
               const isCurrentPlan =
                 (plan.name.toLowerCase().includes("pro") && isPro) ||
                 (plan.name.toLowerCase().includes("premium") && isPremium);
-              const isDowngrade = isPremium && plan.id.includes("pro");
-              const canSubscribe = !isCurrentPlan && !isDowngrade;
+
+              let planAction = null;
+              let canInteract = false;
+
+              if (!subscription) {
+                planAction = "subscribe";
+                canInteract = true;
+              } else if (isCurrentPlan) {
+                planAction = "current";
+                canInteract = false;
+              } else if (isPremium) {
+                planAction = "upgrade";
+                canInteract = true;
+              } else if (isPro) {
+                planAction = "downgrade";
+                canInteract = true;
+              } else {
+                planAction = "unavailable";
+                canInteract = false;
+              }
 
               return (
                 <div key={plan.id} className="relative group">
-                  {/* Popular badge */}
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
                       <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-6 py-2 rounded-full shadow-lg font-bold text-sm">
@@ -211,7 +272,6 @@ const PlansPage = () => {
                     </div>
                   )}
 
-                  {/* Current plan badge */}
                   {isCurrentPlan && (
                     <div className="absolute -top-6 -left-6 z-20">
                       <div className="relative">
@@ -319,11 +379,21 @@ const PlansPage = () => {
                     </div>
 
                     <button
-                      onClick={() => handleSubscribe(plan.id)}
-                      disabled={loading || !canSubscribe}
+                      onClick={() => {
+                        if (planAction === "subscribe") {
+                          handleSubscribe(plan.id);
+                        } else if (planAction === "upgrade") {
+                          handlePlanChange(plan.id, "upgrade");
+                        } else if (planAction === "downgrade") {
+                          handlePlanChange(plan.id, "downgrade");
+                        }
+                      }}
+                      disabled={loading || !canInteract}
                       className={`w-full font-semibold py-4 rounded-2xl transition-all duration-300 ${
-                        !canSubscribe
+                        !canInteract
                           ? "bg-gray-500/50 text-gray-300 cursor-not-allowed border border-gray-400/30"
+                          : planAction === "downgrade"
+                          ? "bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90 text-white transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                           : `bg-gradient-to-r ${plan.color} hover:opacity-90 text-white transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`
                       }`}
                     >
@@ -332,7 +402,7 @@ const PlansPage = () => {
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                           Processing...
                         </div>
-                      ) : isCurrentPlan ? (
+                      ) : planAction === "current" ? (
                         <div className="flex items-center justify-center">
                           <svg
                             className="w-5 h-5 text-gray-300 mr-2"
@@ -349,10 +419,10 @@ const PlansPage = () => {
                           </svg>
                           Current Plan
                         </div>
-                      ) : isDowngrade ? (
+                      ) : planAction === "upgrade" ? (
                         <div className="flex items-center justify-center">
                           <svg
-                            className="w-5 h-5 text-gray-300 mr-2"
+                            className="w-5 h-5 text-white mr-2"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -361,13 +431,32 @@ const PlansPage = () => {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth={2}
-                              d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                              d="M7 10l5-5m0 0l5 5m-5-5v18"
                             />
                           </svg>
-                          Downgrade Not Available
+                          Upgrade to {plan.name}
                         </div>
-                      ) : (
+                      ) : planAction === "downgrade" ? (
+                        <div className="flex items-center justify-center">
+                          <svg
+                            className="w-5 h-5 text-white mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M17 14l-5 5m0 0l-5-5m5 5V3"
+                            />
+                          </svg>
+                          Downgrade to {plan.name}
+                        </div>
+                      ) : planAction === "subscribe" ? (
                         `Start ${plan.name} Plan`
+                      ) : (
+                        "Not Available"
                       )}
                     </button>
 
