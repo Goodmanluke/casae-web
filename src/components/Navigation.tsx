@@ -110,6 +110,17 @@ export default function Navigation() {
               Plans
             </button>
             
+            <button
+              onClick={() => navigateTo('/billing')}
+              className={`px-4 py-2 rounded-xl font-medium transition-all duration-300 ${
+                router.pathname === '/billing'
+                  ? 'bg-cyan-500 text-white shadow-lg'
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+            >
+              Billing
+            </button>
+            
             {/* User Icon with Dropdown */}
             <div className="relative user-dropdown">
               <button
@@ -211,6 +222,17 @@ export default function Navigation() {
                 }`}
               >
                 Plans
+              </button>
+              
+              <button
+                onClick={() => navigateTo('/billing')}
+                className={`px-4 py-3 rounded-xl font-medium transition-all duration-300 text-left ${
+                  router.pathname === '/billing'
+                    ? 'bg-cyan-500 text-white shadow-lg'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                Billing
               </button>
               
               {userEmail && (
