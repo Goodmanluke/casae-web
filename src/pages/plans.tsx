@@ -242,35 +242,28 @@ const PlansPage = () => {
                 (plan.name.toLowerCase().includes("pro") && isPro) ||
                 (plan.name.toLowerCase().includes("premium") && isPremium);
 
-              // Determine what action is available for this plan
               let planAction = null;
               let canInteract = false;
 
               if (!subscription) {
-                // No subscription - can subscribe to any plan
                 planAction = "subscribe";
                 canInteract = true;
               } else if (isCurrentPlan) {
-                // Current plan - no action available
                 planAction = "current";
                 canInteract = false;
-              } else if (isPro && plan.name.toLowerCase().includes("premium")) {
-                // User has Pro, looking at Premium - can upgrade
+              } else if (isPremium) {
                 planAction = "upgrade";
                 canInteract = true;
-              } else if (isPremium && plan.name.toLowerCase().includes("pro")) {
-                // User has Premium, looking at Pro - can downgrade
+              } else if (isPro) {
                 planAction = "downgrade";
                 canInteract = true;
               } else {
-                // Other cases - typically can't change
                 planAction = "unavailable";
                 canInteract = false;
               }
 
               return (
                 <div key={plan.id} className="relative group">
-                  {/* Popular badge */}
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
                       <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black px-6 py-2 rounded-full shadow-lg font-bold text-sm">
@@ -279,7 +272,6 @@ const PlansPage = () => {
                     </div>
                   )}
 
-                  {/* Current plan badge */}
                   {isCurrentPlan && (
                     <div className="absolute -top-6 -left-6 z-20">
                       <div className="relative">

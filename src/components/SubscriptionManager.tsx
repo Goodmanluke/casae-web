@@ -6,7 +6,9 @@ interface SubscriptionManagerProps {
   userId: string;
 }
 
-const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ userId }) => {
+const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
+  userId,
+}) => {
   const router = useRouter();
   const {
     subscription,
@@ -29,7 +31,9 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ userId }) => 
       setActionError(null);
       await cancelSubscription();
       setShowCancelConfirm(false);
-      alert("Subscription will be canceled at the end of your current billing period.");
+      alert(
+        "Subscription will be canceled at the end of your current billing period."
+      );
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Failed to cancel subscription"
@@ -39,19 +43,24 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ userId }) => 
     }
   };
 
-  const handlePlanChange = async (newPlanId: string, action: "upgrade" | "downgrade") => {
+  const handlePlanChange = async (
+    newPlanId: string,
+    action: "upgrade" | "downgrade"
+  ) => {
     try {
       setActionLoading(true);
       setActionError(null);
-      
+
       const result = await changePlan(newPlanId, action);
-      
+
       if (action === "upgrade") {
         alert("Plan upgraded successfully! Changes are effective immediately.");
       } else {
-        alert("Plan will be downgraded at the end of your current billing period.");
+        alert(
+          "Plan will be downgraded at the end of your current billing period."
+        );
       }
-      
+
       // Refresh the page to show updated state
       window.location.reload();
     } catch (err) {
@@ -131,12 +140,19 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ userId }) => 
               Current Plan: {currentPlanName}
             </h3>
             <p className="text-gray-600">
-              Status: <span className="capitalize font-medium text-green-600">{subscription.status}</span>
+              Status:{" "}
+              <span className="capitalize font-medium text-green-600">
+                {subscription.status}
+              </span>
             </p>
           </div>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-            isPremium ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-          }`}>
+          <div
+            className={`px-3 py-1 rounded-full text-sm font-medium ${
+              isPremium
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-blue-100 text-blue-800"
+            }`}
+          >
             {currentPlanName}
           </div>
         </div>
@@ -161,79 +177,12 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ userId }) => 
         {subscription.cancel_at_period_end && (
           <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
             <p className="text-orange-800 text-sm">
-              ⚠️ Your subscription will be canceled at the end of the current billing period.
+              ⚠️ Your subscription will be canceled at the end of the current
+              billing period.
             </p>
           </div>
         )}
       </div>
-
-      {/* Plan Change Options */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Plan Options</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Upgrade Option */}
-          {isPro && (
-            <div className="border border-emerald-200 rounded-lg p-4 bg-emerald-50">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h4 className="font-medium text-emerald-900">Premium Plan</h4>
-                  <p className="text-sm text-emerald-700">More features and higher limits</p>
-                </div>
-                <div className="text-emerald-900 font-bold">$49.99/mo</div>
-              </div>
-              <button
-                onClick={() => handlePlanChange("premium-plan", "upgrade")}
-                disabled={actionLoading}
-                className="w-full bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading ? "Processing..." : "Upgrade to Premium"}
-              </button>
-            </div>
-          )}
-
-          {/* Downgrade Option */}
-          {isPremium && (
-            <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h4 className="font-medium text-blue-900">Pro Plan</h4>
-                  <p className="text-sm text-blue-700">Basic features for serious investors</p>
-                </div>
-                <div className="text-blue-900 font-bold">$79.99/mo</div>
-              </div>
-              <button
-                onClick={() => handlePlanChange("pro-plan", "downgrade")}
-                disabled={actionLoading}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading ? "Processing..." : "Downgrade to Pro"}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          onClick={() => router.push("/plans")}
-          className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
-        >
-          View All Plans
-        </button>
-        
-        {!subscription.cancel_at_period_end && (
-          <button
-            onClick={() => setShowCancelConfirm(true)}
-            disabled={actionLoading}
-            className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Cancel Subscription
-          </button>
-        )}
-      </div>
-
-      {/* Error Display */}
       {(error || actionError) && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-800 text-sm">{error || actionError}</p>
@@ -248,7 +197,8 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({ userId }) => 
               Cancel Subscription
             </h3>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to cancel your subscription? You'll continue to have access until the end of your current billing period.
+              Are you sure you want to cancel your subscription? You'll continue
+              to have access until the end of your current billing period.
             </p>
             <div className="flex gap-4">
               <button
