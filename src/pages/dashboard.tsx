@@ -309,7 +309,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="grid gap-8 lg:grid-cols-2">
+          <div className="grid gap-8 lg:grid-cols-1">
             {/* Saved Properties */}
             <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
               <div className="flex items-center mb-6">
