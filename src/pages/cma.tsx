@@ -60,7 +60,8 @@ export default function CMA() {
   const isButtonDisabled = (): boolean => {
     if (loading) return true;
     if (subscriptionLoading || usageLoading || !userId) return true;
-    if (userId && !subscriptionLoading && !subscription) return true;
+    if (userId && !subscriptionLoading && !subscription && !isPremium && !isPro)
+      return true;
     if (userId && subscription && !safeCheckUsageLimit().canUse) return true;
     return false;
   };
@@ -69,7 +70,7 @@ export default function CMA() {
     if (loading) return "Analyzing...";
     if (subscriptionLoading || usageLoading) return "Loading...";
     if (!userId) return "Login Required";
-    if (!subscription) return "Subscription Required";
+    if (!subscription && !isPremium && !isPro) return "Subscription Required";
     if (!safeCheckUsageLimit().canUse) return "Limit Reached";
     return "Run CMA";
   };
@@ -98,7 +99,6 @@ export default function CMA() {
     // Address bootstrap
     if (typeof query.address === "string" && query.address.trim().length > 0) {
       setAddress(query.address);
-      fetchBaseline(query.address);
     }
     // Tab bootstrap
     if (
@@ -109,6 +109,17 @@ export default function CMA() {
     }
   }, [query.address, query.tab]);
 
+  useEffect(() => {
+    if (
+      userId &&
+      address.trim().length > 0 &&
+      !baselineData &&
+      !subscriptionLoading
+    ) {
+      fetchBaseline(address);
+    }
+  }, [userId, address, subscriptionLoading]);
+
   const fetchBaseline = async (addr: string) => {
     if (!addr) return;
 
@@ -116,7 +127,12 @@ export default function CMA() {
       setError("Please log in to use the CMA feature.");
       return;
     }
-    if (!subscription) {
+
+    if (subscriptionLoading) {
+      return;
+    }
+
+    if (!subscription && !isPremium && !isPro) {
       setError(
         "You need an active Premium or Pro subscription to use the CMA feature. Please upgrade your plan."
       );
@@ -406,21 +422,25 @@ export default function CMA() {
           </div>
         )}
 
-        {userId && !subscriptionLoading && !subscription && (
-          <div className="mb-6 rounded-xl bg-orange-500/20 p-4 border border-orange-400/30">
-            <div className="font-semibold text-orange-200">
-              Subscription Required
+        {userId &&
+          !subscriptionLoading &&
+          !subscription &&
+          !isPremium &&
+          !isPro && (
+            <div className="mb-6 rounded-xl bg-orange-500/20 p-4 border border-orange-400/30">
+              <div className="font-semibold text-orange-200">
+                Subscription Required
+              </div>
+              <div className="opacity-90 text-orange-100">
+                You need an active Premium or Pro subscription to use the CMA
+                feature.
+                <a href="/dashboard" className="underline hover:no-underline">
+                  Upgrade your plan
+                </a>{" "}
+                to get started.
+              </div>
             </div>
-            <div className="opacity-90 text-orange-100">
-              You need an active Premium or Pro subscription to use the CMA
-              feature.
-              <a href="/dashboard" className="underline hover:no-underline">
-                Upgrade your plan
-              </a>{" "}
-              to get started.
-            </div>
-          </div>
-        )}
+          )}
 
         {/* Loading / Error */}
         {loading && (
