@@ -114,6 +114,65 @@ export function useSubscription(userId: string | undefined) {
     }
   };
 
+  const changePlan = async (newPlanId: string, action: "upgrade" | "downgrade") => {
+    if (!userId || !subscription?.stripe_subscription_id) {
+      throw new Error("No active subscription found");
+    }
+
+    try {
+      const response = await fetch("/api/subscription/change-plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          newPlanId,
+          action,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to change plan");
+      }
+
+      const result = await response.json();
+      
+      // Reload subscription data
+      await loadSubscription();
+      
+      return result;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to change plan"
+      );
+      throw err;
+    }
+  };
+
+  const getAvailablePlans = async () => {
+    if (!userId) {
+      throw new Error("User ID is required");
+    }
+
+    try {
+      const response = await fetch(`/api/subscription/available-plans?userId=${userId}`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch available plans");
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch available plans"
+      );
+      throw err;
+    }
+  };
+
   const isTrialing = subscription?.status === "trialing";
   const isPastDue = subscription?.status === "past_due";
 
@@ -139,6 +198,8 @@ export function useSubscription(userId: string | undefined) {
     hasProAccess,
     createCheckoutSession,
     cancelSubscription,
+    changePlan,
+    getAvailablePlans,
     refresh: loadSubscription,
   };
 }

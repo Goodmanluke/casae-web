@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
 import Navigation from "../components/Navigation";
 import InvoiceManager from "../components/InvoiceManager";
+import SubscriptionManager from "../components/SubscriptionManager";
 
 const BillingPage = () => {
   const router = useRouter();
@@ -91,7 +92,10 @@ const BillingPage = () => {
           </div>
         </div>
 
+        <SubscriptionManager userId={userId} />
+        
         <InvoiceManager userId={userId} />
+        
         <div className="mt-8 bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
             Billing Information
