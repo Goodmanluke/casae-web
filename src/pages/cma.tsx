@@ -14,6 +14,7 @@ export default function CMA() {
   const { query } = useRouter();
 
   const [address, setAddress] = useState("");
+  const [addressFromUrl, setAddressFromUrl] = useState(false);
   const [baselineData, setBaselineData] = useState<any>(null);
   const [adjustedData, setAdjustedData] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("snapshot");
@@ -96,9 +97,9 @@ export default function CMA() {
 
   // On mount / on query change
   useEffect(() => {
-    // Address bootstrap
     if (typeof query.address === "string" && query.address.trim().length > 0) {
       setAddress(query.address);
+      setAddressFromUrl(true);
     }
     // Tab bootstrap
     if (
@@ -108,6 +109,31 @@ export default function CMA() {
       setTab(query.tab as Tab);
     }
   }, [query.address, query.tab]);
+
+  useEffect(() => {
+    if (
+      userId &&
+      address.trim().length > 0 &&
+      addressFromUrl &&
+      !baselineData &&
+      !subscriptionLoading &&
+      !usageLoading &&
+      (subscription || isPremium || isPro)
+    ) {
+      fetchBaseline(address);
+      setAddressFromUrl(false);
+    }
+  }, [
+    userId,
+    address,
+    addressFromUrl,
+    baselineData,
+    subscriptionLoading,
+    usageLoading,
+    subscription,
+    isPremium,
+    isPro,
+  ]);
 
   const fetchBaseline = async (addr: string) => {
     if (!addr) return;
@@ -335,7 +361,10 @@ export default function CMA() {
               className="flex-1 bg-white/90 text-gray-800 p-3 rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
               placeholder="Enter property address"
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setAddressFromUrl(false); // Reset flag when user types manually
+              }}
             />
             <button
               type="submit"
