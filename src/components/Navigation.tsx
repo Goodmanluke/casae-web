@@ -119,11 +119,11 @@ export default function Navigation() {
               {/* Dropdown Menu */}
               {showUserDropdown && (
                 <div 
-                  className="absolute top-full right-0 mt-2 w-[260px] md:w-[360px] bg-white/10 backdrop-blur-xl rounded-xl border border-white/20 shadow-2xl z-50"
+                  className="absolute top-full right-0 mt-2 w-[260px] md:w-[360px] bg-black/80 backdrop-blur-xl rounded-xl border border-white/20 shadow-2xl z-50"
                   onMouseLeave={() => setShowUserDropdown(false)}
                 >
                   <div className="p-2">
-                    <div className="px-3 py-2 text-white/60 text-sm border-b border-white/10 truncate">
+                    <div className="px-3 py-2 text-white/80 text-sm border-b border-white/20 truncate">
                       {userEmail}
                     </div>
                     <button
