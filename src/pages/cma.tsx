@@ -25,6 +25,11 @@ export default function CMA() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveModalMessage, setSaveModalMessage] = useState("");
+  const [saveModalType, setSaveModalType] = useState<
+    "success" | "error" | "login"
+  >("success");
   const [monthlyRent, setMonthlyRent] = useState<number | null>(null);
   const [adjustedMonthlyRent, setAdjustedMonthlyRent] = useState<number | null>(
     null
@@ -260,7 +265,9 @@ export default function CMA() {
       await cmaPdf(baselineData.cma_run_id, { adjusted: useAdjusted });
     } catch (err) {
       console.error("PDF failed:", err);
-      alert("Could not start PDF download.");
+      setSaveModalType("error");
+      setSaveModalMessage("Could not start PDF download. Please try again.");
+      setShowSaveModal(true);
     }
   };
 
@@ -271,7 +278,9 @@ export default function CMA() {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user?.id;
       if (!userId) {
-        alert("Please login to save properties.");
+        setSaveModalType("login");
+        setSaveModalMessage("Please login to save properties.");
+        setShowSaveModal(true);
         return;
       }
       const s = baselineData.subject || {};
@@ -291,10 +300,14 @@ export default function CMA() {
       ]);
       if (error) throw error;
       setSaved(true);
-      alert("Property saved.");
+      setSaveModalType("success");
+      setSaveModalMessage("Property saved successfully!");
+      setShowSaveModal(true);
     } catch (e: any) {
       console.error(e);
-      alert(e?.message || "Failed to save property");
+      setSaveModalType("error");
+      setSaveModalMessage(e?.message || "Failed to save property");
+      setShowSaveModal(true);
     } finally {
       setSaving(false);
     }
@@ -877,6 +890,109 @@ export default function CMA() {
           </div>
         )}
       </div>
+
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mb-4">
+                {saveModalType === "success" && (
+                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-green-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M5 13l4 4L19 7"
+                      ></path>
+                    </svg>
+                  </div>
+                )}
+                {saveModalType === "error" && (
+                  <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      ></path>
+                    </svg>
+                  </div>
+                )}
+                {saveModalType === "login" && (
+                  <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-8 h-8 text-blue-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      ></path>
+                    </svg>
+                  </div>
+                )}
+              </div>
+
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                {saveModalType === "success" && "Property Saved!"}
+                {saveModalType === "error" && "Save Failed"}
+                {saveModalType === "login" && "Login Required"}
+              </h3>
+
+              <p className="text-gray-600 mb-6">{saveModalMessage}</p>
+
+              <div className="flex gap-3 justify-center">
+                {saveModalType === "login" ? (
+                  <>
+                    <button
+                      onClick={() => setShowSaveModal(false)}
+                      className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowSaveModal(false);
+                        window.location.href = "/login";
+                      }}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                    >
+                      Go to Login
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => setShowSaveModal(false)}
+                    className={`px-6 py-2 rounded-lg transition ${
+                      saveModalType === "success"
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-red-600 hover:bg-red-700 text-white"
+                    }`}
+                  >
+                    {saveModalType === "success" ? "Great!" : "OK"}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
