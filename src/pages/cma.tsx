@@ -15,6 +15,9 @@ export default function CMA() {
 
   const [address, setAddress] = useState("");
   const [addressFromUrl, setAddressFromUrl] = useState(false);
+  const [isViewingSavedProperty, setIsViewingSavedProperty] = useState(false);
+  const [hasProcessedUrlParams, setHasProcessedUrlParams] = useState(false);
+  const [checkedIfSavedProperty, setCheckedIfSavedProperty] = useState(false);
   const [baselineData, setBaselineData] = useState<any>(null);
   const [adjustedData, setAdjustedData] = useState<any>(null);
   const [tab, setTab] = useState<Tab>("snapshot");
@@ -90,6 +93,58 @@ export default function CMA() {
   const [addBaths, setAddBaths] = useState<number>(0);
   const [addSqft, setAddSqft] = useState<number>(0);
 
+  // Check if address is a saved property when saved=true is not in URL
+  const checkIfSavedProperty = async (address: string) => {
+    if (!userId || !address) return false;
+
+    try {
+      const { data, error } = await supabase
+        .from("properties")
+        .select("address")
+        .eq("user_id", userId)
+        .eq("address", address)
+        .limit(1);
+
+      if (error) {
+        console.error("Error checking saved property:", error);
+        return false;
+      }
+
+      return data && data.length > 0;
+    } catch (error) {
+      console.error("Error checking saved property:", error);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const checkSavedStatus = async () => {
+      if (
+        userId &&
+        address &&
+        addressFromUrl &&
+        hasProcessedUrlParams &&
+        !isViewingSavedProperty &&
+        !checkedIfSavedProperty
+      ) {
+        const isSaved = await checkIfSavedProperty(address);
+        if (isSaved) {
+          setIsViewingSavedProperty(true);
+        }
+        setCheckedIfSavedProperty(true);
+      }
+    };
+
+    checkSavedStatus();
+  }, [
+    userId,
+    address,
+    addressFromUrl,
+    hasProcessedUrlParams,
+    isViewingSavedProperty,
+    checkedIfSavedProperty,
+  ]);
+
   useEffect(() => {
     const getUserId = async () => {
       const {
@@ -100,47 +155,62 @@ export default function CMA() {
     getUserId();
   }, []);
 
-  // On mount / on query change
   useEffect(() => {
+    let shouldSetAddressFromUrl = false;
+    let shouldSetIsViewingSaved = false;
     if (typeof query.address === "string" && query.address.trim().length > 0) {
       setAddress(query.address);
-      setAddressFromUrl(true);
+      shouldSetAddressFromUrl = true;
     }
-    // Tab bootstrap
+    if (typeof query.saved === "string" && query.saved === "true") {
+      shouldSetIsViewingSaved = true;
+    }
+    setAddressFromUrl(shouldSetAddressFromUrl);
+    setIsViewingSavedProperty(shouldSetIsViewingSaved);
+    setHasProcessedUrlParams(true);
+    setCheckedIfSavedProperty(shouldSetIsViewingSaved);
     if (
       typeof query.tab === "string" &&
       ["snapshot", "adjustments", "result", "calculators"].includes(query.tab)
     ) {
       setTab(query.tab as Tab);
     }
-  }, [query.address, query.tab]);
+  }, [query.address, query.tab, query.saved]);
 
   useEffect(() => {
     if (
       userId &&
       address.trim().length > 0 &&
       addressFromUrl &&
+      hasProcessedUrlParams &&
+      checkedIfSavedProperty &&
       !baselineData &&
       !subscriptionLoading &&
       !usageLoading &&
       (subscription || isPremium || isPro)
     ) {
-      fetchBaseline(address);
+      fetchBaseline(address, isViewingSavedProperty);
       setAddressFromUrl(false);
     }
   }, [
     userId,
     address,
     addressFromUrl,
+    hasProcessedUrlParams,
+    checkedIfSavedProperty,
     baselineData,
     subscriptionLoading,
     usageLoading,
     subscription,
     isPremium,
     isPro,
+    isViewingSavedProperty,
   ]);
 
-  const fetchBaseline = async (addr: string) => {
+  const fetchBaseline = async (
+    addr: string,
+    skipUsageIncrement: boolean = false
+  ) => {
     if (!addr) return;
 
     if (!userId) {
@@ -158,16 +228,19 @@ export default function CMA() {
       );
       return;
     }
-    const usageCheck = safeCheckUsageLimit();
-    if (!usageCheck.canUse) {
-      setError(
-        `You have reached your monthly CMA limit of ${
-          usageCheck.limit
-        } for your ${getPlanName()} plan. ${
-          !isPro ? "Consider upgrading to Pro for more CMA runs or " : ""
-        }Please wait until next month.`
-      );
-      return;
+
+    if (!skipUsageIncrement) {
+      const usageCheck = safeCheckUsageLimit();
+      if (!usageCheck.canUse) {
+        setError(
+          `You have reached your monthly CMA limit of ${
+            usageCheck.limit
+          } for your ${getPlanName()} plan. ${
+            !isPro ? "Consider upgrading to Pro for more CMA runs or " : ""
+          }Please wait until next month.`
+        );
+        return;
+      }
     }
 
     setLoading(true);
@@ -176,7 +249,7 @@ export default function CMA() {
       const data = await cmaBaseline({ subject: { address: addr } } as any);
       setBaselineData(data);
 
-      if (userId) {
+      if (userId && !skipUsageIncrement) {
         await incrementUsage();
       }
 
@@ -360,13 +433,12 @@ export default function CMA() {
       <Navigation />
 
       <div className="max-w-6xl mx-auto px-4 py-8 text-white">
-        {/* Address bar */}
         <div className="mb-6">
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (!address.trim()) return;
-              fetchBaseline(address.trim());
+              fetchBaseline(address.trim(), false); // Always increment usage for manual runs
             }}
             className="flex gap-3"
           >
@@ -376,7 +448,10 @@ export default function CMA() {
               value={address}
               onChange={(e) => {
                 setAddress(e.target.value);
-                setAddressFromUrl(false); // Reset flag when user types manually
+                setAddressFromUrl(false);
+                setIsViewingSavedProperty(false);
+                setHasProcessedUrlParams(false);
+                setCheckedIfSavedProperty(false);
               }}
             />
             <button

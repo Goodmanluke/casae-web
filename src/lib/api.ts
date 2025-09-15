@@ -34,16 +34,8 @@ function toQS(params: Record<string, any>): string {
  * Minimal fetch wrapper with generic response typing.
  */
 async function request<T>(url: string, init: RequestInit): Promise<T> {
-  console.log(`[API] Making request to: ${url}`);
-  console.log(`[API] Request init:`, init);
-
   try {
     const res = await fetch(url, init);
-    console.log(`[API] Response status: ${res.status}`);
-    console.log(
-      `[API] Response headers:`,
-      Object.fromEntries(res.headers.entries())
-    );
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
@@ -52,7 +44,6 @@ async function request<T>(url: string, init: RequestInit): Promise<T> {
     }
 
     const data = await res.json();
-    console.log(`[API] Response data:`, data);
     return data as T;
   } catch (error) {
     console.error(`[API] Fetch error:`, error);
