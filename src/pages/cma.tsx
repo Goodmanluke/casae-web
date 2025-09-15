@@ -58,6 +58,7 @@ export default function CMA() {
   };
 
   const isButtonDisabled = (): boolean => {
+    if (loading) return true;
     if (subscriptionLoading || usageLoading || !userId) return true;
     if (userId && !subscriptionLoading && !subscription) return true;
     if (userId && subscription && !safeCheckUsageLimit().canUse) return true;
@@ -65,6 +66,7 @@ export default function CMA() {
   };
 
   const getButtonText = (): string => {
+    if (loading) return "Analyzing...";
     if (subscriptionLoading || usageLoading) return "Loading...";
     if (!userId) return "Login Required";
     if (!subscription) return "Subscription Required";
@@ -665,9 +667,14 @@ export default function CMA() {
                   <div className="mt-5">
                     <button
                       onClick={applyAdjustments}
-                      className="px-6 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 transition text-white font-semibold shadow-lg"
+                      disabled={loading}
+                      className={`px-6 py-3 rounded-xl font-semibold shadow-lg transition ${
+                        loading
+                          ? "bg-gray-500 cursor-not-allowed text-white"
+                          : "bg-cyan-500 hover:bg-cyan-600 text-white"
+                      }`}
                     >
-                      Apply Adjustments
+                      {loading ? "Applying..." : "Apply Adjustments"}
                     </button>
                   </div>
                 </div>
