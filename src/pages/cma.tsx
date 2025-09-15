@@ -109,17 +109,6 @@ export default function CMA() {
     }
   }, [query.address, query.tab]);
 
-  useEffect(() => {
-    if (
-      userId &&
-      address.trim().length > 0 &&
-      !baselineData &&
-      !subscriptionLoading
-    ) {
-      fetchBaseline(address);
-    }
-  }, [userId, address, subscriptionLoading]);
-
   const fetchBaseline = async (addr: string) => {
     if (!addr) return;
 
