@@ -265,6 +265,16 @@ export default function InvestmentCalculators({
               />
             </div>
             <div>
+              <label className="block text-sm mb-1">Monthly Rent</label>
+              <input
+                type="number"
+                value={monthlyRent ?? 0}
+                onChange={(e) => {}}
+                className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
+                disabled
+              />
+            </div>
+            <div>
               <label className="block text-sm mb-1">
                 After Repair Value (ARV)
               </label>
@@ -562,6 +572,16 @@ export default function InvestmentCalculators({
                 value={purchasePrice}
                 disabled
                 className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
+              />
+            </div>
+            <div>
+              <label className="block text-sm mb-1">Monthly Rent</label>
+              <input
+                type="number"
+                value={estRent ?? 0}
+                onChange={(e) => {}}
+                className="w-full bg-white/90 text-gray-800 p-2 rounded-lg"
+                disabled
               />
             </div>
             <div>
