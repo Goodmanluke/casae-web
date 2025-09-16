@@ -1,4 +1,10 @@
-type Tab = "address" | "condition" | "baseline" | "adjustments" | "result" | "calculators";
+type Tab =
+  | "address"
+  | "condition"
+  | "baseline"
+  | "adjustments"
+  | "result"
+  | "calculators";
 
 interface TabNavigationProps {
   currentTab: Tab;
@@ -13,7 +19,7 @@ export default function TabNavigation({
   setTab,
   addressConfirmed,
   conditionCompleted,
-  baselineCompleted
+  baselineCompleted,
 }: TabNavigationProps) {
   const canAccessTab = (tabName: Tab) => {
     switch (tabName) {
@@ -37,7 +43,7 @@ export default function TabNavigation({
   const getTabButtonClass = (tabName: Tab) => {
     const isActive = currentTab === tabName;
     const canAccess = canAccessTab(tabName);
-    
+
     if (isActive) {
       return "bg-cyan-500 text-white shadow-lg";
     } else if (canAccess) {
@@ -51,9 +57,9 @@ export default function TabNavigation({
     { key: "address", label: "1. Address" },
     { key: "condition", label: "2. Current Condition" },
     { key: "baseline", label: "3. Baseline CMA" },
-    { key: "adjustments", label: "4. Planned Changes" },
-    { key: "result", label: "5. Results" },
-    { key: "calculators", label: "6. Calculators" }
+    { key: "adjustments", label: "4. Adjustments" },
+    { key: "result", label: "5. Adjusted CMA" },
+    { key: "calculators", label: "6. Calculators" },
   ];
 
   return (
@@ -62,7 +68,9 @@ export default function TabNavigation({
         <button
           key={key}
           onClick={() => canAccessTab(key as Tab) && setTab(key as Tab)}
-          className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${getTabButtonClass(key as Tab)}`}
+          className={`px-6 py-3 rounded-xl font-medium transition-all whitespace-nowrap ${getTabButtonClass(
+            key as Tab
+          )}`}
           disabled={!canAccessTab(key as Tab)}
         >
           {label}

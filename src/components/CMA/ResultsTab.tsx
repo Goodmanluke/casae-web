@@ -15,7 +15,7 @@ export default function ResultsTab({
   monthlyRent,
   adjustedMonthlyRent,
   onDownloadPdf,
-  onGoToCalculators
+  onGoToCalculators,
 }: ResultsTabProps) {
   const renderPropertyCard = (comp: Comp | any, isSubject: boolean = false) => (
     <div
@@ -59,9 +59,7 @@ export default function ResultsTab({
               ? `$${baselineData.estimate.toLocaleString()}`
               : "—"}
           </div>
-          <div className="text-xs opacity-75 mt-1">
-            Current Condition
-          </div>
+          <div className="text-xs opacity-75 mt-1">Current Condition</div>
         </div>
         <div className="rounded-xl bg-white/10 p-4 border border-white/10">
           <div className="text-sm opacity-80">After Repair Value (ARV)</div>
@@ -70,30 +68,20 @@ export default function ResultsTab({
               ? `$${adjustedData.estimate.toLocaleString()}`
               : "—"}
           </div>
-          <div className="text-xs opacity-75 mt-1">
-            After Improvements
-          </div>
+          <div className="text-xs opacity-75 mt-1">After Improvements</div>
         </div>
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-          <div className="text-sm opacity-80">
-            Current Monthly Rent
-          </div>
+          <div className="text-sm opacity-80">Current Monthly Rent</div>
           <div className="text-2xl font-bold">
-            {monthlyRent !== null
-              ? `$${monthlyRent.toLocaleString()}`
-              : "—"}
+            {monthlyRent !== null ? `$${monthlyRent.toLocaleString()}` : "—"}
           </div>
-          <div className="text-xs opacity-75 mt-1">
-            Current Condition
-          </div>
+          <div className="text-xs opacity-75 mt-1">Current Condition</div>
         </div>
         <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-          <div className="text-sm opacity-80">
-            Improved Monthly Rent
-          </div>
+          <div className="text-sm opacity-80">Improved Monthly Rent</div>
           <div className="text-2xl font-bold">
             {adjustedMonthlyRent !== null
               ? `$${adjustedMonthlyRent.toLocaleString()}`
@@ -102,9 +90,7 @@ export default function ResultsTab({
               : "—"}
           </div>
           <div className="text-xs opacity-75 mt-1">
-            {adjustedMonthlyRent !== null
-              ? "After Improvements"
-              : "No Change"}
+            {adjustedMonthlyRent !== null ? "After Improvements" : "No Change"}
           </div>
         </div>
       </div>
@@ -115,10 +101,7 @@ export default function ResultsTab({
           <div className="text-xl font-semibold">
             {baselineData?.estimate && adjustedData?.estimate ? (
               <>
-                {adjustedData.estimate > baselineData.estimate
-                  ? "+"
-                  : ""}
-                $
+                {adjustedData.estimate > baselineData.estimate ? "+" : ""}$
                 {Math.abs(
                   adjustedData.estimate - baselineData.estimate
                 ).toLocaleString()}{" "}
@@ -143,13 +126,9 @@ export default function ResultsTab({
             adjustedMonthlyRent !== monthlyRent ? (
               <>
                 {adjustedMonthlyRent > monthlyRent ? "+" : ""}$
-                {Math.abs(
-                  adjustedMonthlyRent - monthlyRent
-                ).toLocaleString()}{" "}
-                (
+                {Math.abs(adjustedMonthlyRent - monthlyRent).toLocaleString()} (
                 {(
-                  ((adjustedMonthlyRent - monthlyRent) /
-                    monthlyRent) *
+                  ((adjustedMonthlyRent - monthlyRent) / monthlyRent) *
                   100
                 ).toFixed(1)}
                 %)
@@ -162,28 +141,27 @@ export default function ResultsTab({
       </div>
 
       {/* Updated comps */}
-      {Array.isArray(adjustedData.comps) &&
-        adjustedData.comps.length > 0 && (
-          <div className="space-y-3">
-            <div className="text-lg font-semibold">
-              Updated Comparable Properties
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              {adjustedData.comps.map((comp: Comp, idx: number) =>
-                renderPropertyCard(comp)
-              )}
-            </div>
+      {Array.isArray(adjustedData.comps) && adjustedData.comps.length > 0 && (
+        <div className="space-y-3">
+          <div className="text-lg font-semibold">
+            Updated Comparable Properties
           </div>
-        )}
+          <div className="grid md:grid-cols-2 gap-4">
+            {adjustedData.comps.map((comp: Comp, idx: number) =>
+              renderPropertyCard(comp)
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3 mt-2">
         <button
           onClick={onDownloadPdf}
           className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg"
         >
-          Download ARV Report
+          Download Result
         </button>
-        
+
         <button
           onClick={onGoToCalculators}
           className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-xl transition"

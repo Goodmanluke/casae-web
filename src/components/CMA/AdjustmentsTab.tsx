@@ -25,7 +25,7 @@ export default function AdjustmentsTab({
   addSqft,
   setAddSqft,
   onApplyAdjustments,
-  loading
+  loading,
 }: AdjustmentsTabProps) {
   const getAdjustmentChips = () => {
     const chips: { label: string; color: string }[] = [];
@@ -41,15 +41,16 @@ export default function AdjustmentsTab({
   return (
     <div className="space-y-6">
       <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-        <div className="text-lg font-semibold mb-3">
-          Planned Changes (ARV)
-        </div>
+        <div className="text-lg font-semibold mb-3">Adjustmetns</div>
         <div className="text-sm opacity-80 mb-4">
-          Plan renovations, additions, or improvements to calculate the After Repair Value (ARV).
+          Plan renovations, additions, or improvements to calculate the After
+          Repair Value (ARV).
         </div>
 
         {/* Condition */}
-        <label className="block text-sm mb-1">Overall Condition After Improvements</label>
+        <label className="block text-sm mb-1">
+          Overall Condition After Improvements
+        </label>
         <select
           value={condition}
           onChange={(e) => setCondition(e.target.value as any)}
@@ -65,23 +66,16 @@ export default function AdjustmentsTab({
         <div className="mt-4">
           <div className="text-sm mb-2">Planned Renovations</div>
           <div className="flex flex-wrap gap-3">
-            {["Kitchen", "Bath", "Flooring", "Roof", "Windows"].map(
-              (opt) => (
-                <label
-                  key={opt}
-                  className="inline-flex items-center gap-2"
-                >
-                  <input
-                    type="checkbox"
-                    checked={renovations.includes(opt.toLowerCase())}
-                    onChange={() =>
-                      toggleRenovation(opt.toLowerCase())
-                    }
-                  />
-                  {opt}
-                </label>
-              )
-            )}
+            {["Kitchen", "Bath", "Flooring", "Roof", "Windows"].map((opt) => (
+              <label key={opt} className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={renovations.includes(opt.toLowerCase())}
+                  onChange={() => toggleRenovation(opt.toLowerCase())}
+                />
+                {opt}
+              </label>
+            ))}
           </div>
         </div>
 
@@ -144,7 +138,7 @@ export default function AdjustmentsTab({
                 : "bg-cyan-500 hover:bg-cyan-600 text-white"
             }`}
           >
-            {loading ? "Applying..." : "Calculate ARV"}
+            {loading ? "Applying..." : "Apply Addjustment"}
           </button>
         </div>
       </div>

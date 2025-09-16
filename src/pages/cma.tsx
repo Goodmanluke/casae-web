@@ -67,7 +67,6 @@ export default function CMA() {
     null
   );
 
-  // Legacy adjustment inputs (for planned changes tab)
   const [condition, setCondition] = useState<
     "Poor" | "Fair" | "Good" | "Excellent"
   >("Good");
