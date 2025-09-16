@@ -1,27 +1,67 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { cmaBaseline, cmaAdjust, cmaPdf, getRentEstimate } from "../lib/api";
-import type { Comp } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import Navigation from "../components/Navigation";
 import InvestmentCalculators from "../components/InvestmentCalculators";
 import { useSubscription } from "../hooks/useSubscription";
 import { useUsageLimit } from "../hooks/useUsageLimit";
 
-type Tab = "snapshot" | "adjustments" | "result" | "calculators";
+// Import CMA components
+import {
+  AddressTab,
+  ConditionTab,
+  BaselineTab,
+  AdjustmentsTab,
+  ResultsTab,
+  ProgressIndicator,
+  TabNavigation,
+  UsageDisplay,
+  SaveModal
+} from "../components/CMA";
+
+type Tab = "address" | "condition" | "baseline" | "adjustments" | "result" | "calculators";
+type ConditionInputMode = "simple" | "advanced";
+type PropertyCondition = {
+  overall: "Excellent" | "Good" | "Fair" | "Poor";
+  roof?: "Excellent" | "Good" | "Fair" | "Poor";
+  windows?: "Excellent" | "Good" | "Fair" | "Poor";
+  siding?: "Excellent" | "Good" | "Fair" | "Poor";
+  kitchen?: "Excellent" | "Good" | "Fair" | "Poor";
+  bathrooms?: "Excellent" | "Good" | "Fair" | "Poor";
+  flooring?: "Excellent" | "Good" | "Fair" | "Poor";
+  interior?: "Excellent" | "Good" | "Fair" | "Poor";
+};
 
 export default function CMA() {
   const { query } = useRouter();
 
+  // Core state
   const [address, setAddress] = useState("");
-  const [addressFromUrl, setAddressFromUrl] = useState(false);
-  const [isViewingSavedProperty, setIsViewingSavedProperty] = useState(false);
-  const [hasProcessedUrlParams, setHasProcessedUrlParams] = useState(false);
-  const [checkedIfSavedProperty, setCheckedIfSavedProperty] = useState(false);
+  const [tab, setTab] = useState<Tab>("address");
+  const [userId, setUserId] = useState<string | undefined>(undefined);
+
+  // Workflow state
+  const [conditionMode, setConditionMode] = useState<ConditionInputMode>("simple");
+  const [propertyCondition, setPropertyCondition] = useState<PropertyCondition>({
+    overall: "Good"
+  });
+  const [addressConfirmed, setAddressConfirmed] = useState(false);
+  const [conditionCompleted, setConditionCompleted] = useState(false);
+  const [baselineCompleted, setBaselineCompleted] = useState(false);
+
+  // Data state
   const [baselineData, setBaselineData] = useState<any>(null);
   const [adjustedData, setAdjustedData] = useState<any>(null);
-  const [tab, setTab] = useState<Tab>("snapshot");
-  const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [monthlyRent, setMonthlyRent] = useState<number | null>(null);
+  const [adjustedMonthlyRent, setAdjustedMonthlyRent] = useState<number | null>(null);
+
+  // Legacy adjustment inputs (for planned changes tab)
+  const [condition, setCondition] = useState<"Poor" | "Fair" | "Good" | "Excellent">("Good");
+  const [renovations, setRenovations] = useState<string[]>([]);
+  const [addBeds, setAddBeds] = useState<number>(0);
+  const [addBaths, setAddBaths] = useState<number>(0);
+  const [addSqft, setAddSqft] = useState<number>(0);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -30,14 +70,9 @@ export default function CMA() {
   const [saved, setSaved] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveModalMessage, setSaveModalMessage] = useState("");
-  const [saveModalType, setSaveModalType] = useState<
-    "success" | "error" | "login"
-  >("success");
-  const [monthlyRent, setMonthlyRent] = useState<number | null>(null);
-  const [adjustedMonthlyRent, setAdjustedMonthlyRent] = useState<number | null>(
-    null
-  );
+  const [saveModalType, setSaveModalType] = useState<"success" | "error" | "login">("success");
 
+  // Subscription & usage hooks
   const {
     subscription,
     loading: subscriptionLoading,
@@ -51,6 +86,7 @@ export default function CMA() {
     incrementUsage,
   } = useUsageLimit(userId, subscription?.plan_id || null);
 
+  // Helper functions
   const getPlanName = () => {
     if (isPro) return "Pro";
     if (isPremium) return "Premium";
@@ -66,193 +102,98 @@ export default function CMA() {
     }
   };
 
-  const isButtonDisabled = (): boolean => {
-    if (loading) return true;
-    if (subscriptionLoading || usageLoading || !userId) return true;
-    if (userId && !subscriptionLoading && !subscription && !isPremium && !isPro)
-      return true;
-    if (userId && subscription && !safeCheckUsageLimit().canUse) return true;
-    return false;
-  };
-
-  const getButtonText = (): string => {
-    if (loading) return "Analyzing...";
-    if (subscriptionLoading || usageLoading) return "Loading...";
-    if (!userId) return "Login Required";
-    if (!subscription && !isPremium && !isPro) return "Subscription Required";
-    if (!safeCheckUsageLimit().canUse) return "Limit Reached";
-    return "Run CMA";
-  };
-
-  // Adjustment inputs
-  const [condition, setCondition] = useState<
-    "Poor" | "Fair" | "Good" | "Excellent"
-  >("Good");
-  const [renovations, setRenovations] = useState<string[]>([]);
-  const [addBeds, setAddBeds] = useState<number>(0);
-  const [addBaths, setAddBaths] = useState<number>(0);
-  const [addSqft, setAddSqft] = useState<number>(0);
-
-  // Check if address is a saved property when saved=true is not in URL
-  const checkIfSavedProperty = async (address: string) => {
-    if (!userId || !address) return false;
-
-    try {
-      const { data, error } = await supabase
-        .from("properties")
-        .select("address")
-        .eq("user_id", userId)
-        .eq("address", address)
-        .limit(1);
-
-      if (error) {
-        console.error("Error checking saved property:", error);
-        return false;
-      }
-
-      return data && data.length > 0;
-    } catch (error) {
-      console.error("Error checking saved property:", error);
-      return false;
-    }
-  };
-
+  // URL parameter handling
   useEffect(() => {
-    const checkSavedStatus = async () => {
-      if (
-        userId &&
-        address &&
-        addressFromUrl &&
-        hasProcessedUrlParams &&
-        !isViewingSavedProperty &&
-        !checkedIfSavedProperty
-      ) {
-        const isSaved = await checkIfSavedProperty(address);
-        if (isSaved) {
-          setIsViewingSavedProperty(true);
-        }
-        setCheckedIfSavedProperty(true);
-      }
-    };
+    if (typeof query.address === "string" && query.address.trim().length > 0) {
+      setAddress(query.address);
+      setAddressConfirmed(true);
+      setTab("condition");
+    }
+    if (typeof query.tab === "string" && 
+        ["address", "condition", "baseline", "adjustments", "result", "calculators"].includes(query.tab)) {
+      setTab(query.tab as Tab);
+    }
+  }, [query.address, query.tab]);
 
-    checkSavedStatus();
-  }, [
-    userId,
-    address,
-    addressFromUrl,
-    hasProcessedUrlParams,
-    isViewingSavedProperty,
-    checkedIfSavedProperty,
-  ]);
-
+  // Get user ID
   useEffect(() => {
     const getUserId = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       setUserId(session?.user?.id);
     };
     getUserId();
   }, []);
 
-  useEffect(() => {
-    let shouldSetAddressFromUrl = false;
-    let shouldSetIsViewingSaved = false;
-    if (typeof query.address === "string" && query.address.trim().length > 0) {
-      setAddress(query.address);
-      shouldSetAddressFromUrl = true;
-    }
-    if (typeof query.saved === "string" && query.saved === "true") {
-      shouldSetIsViewingSaved = true;
-    }
-    setAddressFromUrl(shouldSetAddressFromUrl);
-    setIsViewingSavedProperty(shouldSetIsViewingSaved);
-    setHasProcessedUrlParams(true);
-    setCheckedIfSavedProperty(shouldSetIsViewingSaved);
-    if (
-      typeof query.tab === "string" &&
-      ["snapshot", "adjustments", "result", "calculators"].includes(query.tab)
-    ) {
-      setTab(query.tab as Tab);
-    }
-  }, [query.address, query.tab, query.saved]);
-
+  // Auto-run baseline CMA after condition is completed
   useEffect(() => {
     if (
-      userId &&
+      conditionCompleted &&
+      !baselineCompleted &&
+      addressConfirmed &&
       address.trim().length > 0 &&
-      addressFromUrl &&
-      hasProcessedUrlParams &&
-      checkedIfSavedProperty &&
-      !baselineData &&
+      userId &&
       !subscriptionLoading &&
       !usageLoading &&
-      (subscription || isPremium || isPro)
+      (subscription || isPremium || isPro) &&
+      !baselineData
     ) {
-      fetchBaseline(address, isViewingSavedProperty);
-      setAddressFromUrl(false);
+      runBaselineCMA();
     }
   }, [
-    userId,
+    conditionCompleted,
+    baselineCompleted,
+    addressConfirmed,
     address,
-    addressFromUrl,
-    hasProcessedUrlParams,
-    checkedIfSavedProperty,
-    baselineData,
+    userId,
     subscriptionLoading,
     usageLoading,
     subscription,
     isPremium,
     isPro,
-    isViewingSavedProperty,
+    baselineData
   ]);
 
-  const fetchBaseline = async (
-    addr: string,
-    skipUsageIncrement: boolean = false
-  ) => {
-    if (!addr) return;
+  const runBaselineCMA = async () => {
+    if (!address.trim()) return;
 
     if (!userId) {
       setError("Please log in to use the CMA feature.");
       return;
     }
 
-    if (subscriptionLoading) {
-      return;
-    }
-
     if (!subscription && !isPremium && !isPro) {
-      setError(
-        "You need an active Premium or Pro subscription to use the CMA feature. Please upgrade your plan."
-      );
+      setError("You need an active Premium or Pro subscription to use the CMA feature.");
       return;
     }
 
-    if (!skipUsageIncrement) {
-      const usageCheck = safeCheckUsageLimit();
-      if (!usageCheck.canUse) {
-        setError(
-          `You have reached your monthly CMA limit of ${
-            usageCheck.limit
-          } for your ${getPlanName()} plan. ${
-            !isPro ? "Consider upgrading to Pro for more CMA runs or " : ""
-          }Please wait until next month.`
-        );
-        return;
-      }
+    const usageCheck = safeCheckUsageLimit();
+    if (!usageCheck.canUse) {
+      setError(`You have reached your monthly CMA limit of ${usageCheck.limit} for your ${getPlanName()} plan.`);
+      return;
     }
 
     setLoading(true);
     setError(null);
     try {
-      const data = await cmaBaseline({ subject: { address: addr } } as any);
-      setBaselineData(data);
+      const conditionForAPI = conditionMode === "simple" 
+        ? propertyCondition.overall 
+        : propertyCondition.overall;
 
-      if (userId && !skipUsageIncrement) {
+      const data = await cmaBaseline({ 
+        subject: { 
+          address: address.trim(),
+          condition: conditionForAPI
+        } 
+      } as any);
+      
+      setBaselineData(data);
+      setBaselineCompleted(true);
+
+      if (userId) {
         await incrementUsage();
       }
 
+      // Get rent estimate
       if (data.subject) {
         const propertyDetails = {
           bedrooms: data.subject.beds,
@@ -260,19 +201,12 @@ export default function CMA() {
           squareFootage: data.subject.sqft,
           propertyType: data.subject.property_type,
         };
-        getRentEstimate(addr, propertyDetails)
-          .then((r) => setMonthlyRent(r?.monthly_rent ?? null))
-          .catch(() => setMonthlyRent(null));
-      } else {
-        getRentEstimate(addr)
+        getRentEstimate(address.trim(), propertyDetails)
           .then((r) => setMonthlyRent(r?.monthly_rent ?? null))
           .catch(() => setMonthlyRent(null));
       }
 
-      setAdjustedData(null);
-      setAdjustedMonthlyRent(null);
-      setSaved(false);
-      setTab("snapshot");
+      setTab("baseline");
     } catch (err: any) {
       console.error("Baseline failed:", err);
       setError(err?.message ?? "Failed to fetch baseline");
@@ -386,148 +320,49 @@ export default function CMA() {
     }
   };
 
-  const getAdjustmentChips = () => {
-    const chips: { label: string; color: string }[] = [];
-    if (condition !== "Good") chips.push({ label: condition, color: "blue" });
-    renovations.forEach((r) => chips.push({ label: r, color: "green" }));
-    if (addBeds > 0) chips.push({ label: `+${addBeds} Bed`, color: "purple" });
-    if (addBaths > 0)
-      chips.push({ label: `+${addBaths} Bath`, color: "purple" });
-    if (addSqft > 0) chips.push({ label: `+${addSqft} Sqft`, color: "orange" });
-    return chips;
+  // Event handlers
+  const handleAddressContinue = () => {
+    setAddressConfirmed(true);
+    setTab("condition");
   };
 
-  const renderPropertyCard = (comp: Comp | any, isSubject: boolean = false) => (
-    <div
-      key={comp.id || (isSubject ? "subject" : Math.random())}
-      className="rounded-xl bg-white/10 p-4 text-white backdrop-blur border border-white/10"
-    >
-      <div className="flex items-start justify-between">
-        <div className="text-sm opacity-80">
-          {isSubject ? "Subject Property" : "Comparable"}
-        </div>
-        {typeof comp.similarity === "number" && !isSubject && (
-          <div className="text-xs bg-white/20 px-2 py-1 rounded">
-            Similarity {(comp.similarity * 100).toFixed(0)}%
-          </div>
-        )}
-      </div>
-      <div className="mt-2 text-lg font-semibold">{comp.address ?? "—"}</div>
-      <div className="mt-1 text-sm opacity-90">
-        {comp.beds ?? comp.subject_beds ?? "—"} bd ·{" "}
-        {comp.baths ?? comp.subject_baths ?? "—"} ba ·{" "}
-        {comp.living_sqft ?? comp.sqft ?? "—"} sqft
-      </div>
-      <div className="mt-2 text-emerald-200 font-semibold">
-        {typeof comp.raw_price === "number"
-          ? `$${comp.raw_price.toLocaleString()}`
-          : comp.price
-          ? `$${Number(comp.price).toLocaleString()}`
-          : "—"}
-      </div>
-    </div>
-  );
+  const handleAddressChange = () => {
+    setAddressConfirmed(false);
+    setConditionCompleted(false);
+    setBaselineCompleted(false);
+    setBaselineData(null);
+    setAdjustedData(null);
+  };
+
+  const handleConditionContinue = () => {
+    setConditionCompleted(true);
+    // Auto-run baseline CMA will be triggered by useEffect
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-cyan-900 to-slate-900">
       <Navigation />
 
       <div className="max-w-6xl mx-auto px-4 py-8 text-white">
-        <div className="mb-6">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!address.trim()) return;
-              fetchBaseline(address.trim(), false); // Always increment usage for manual runs
-            }}
-            className="flex gap-3"
-          >
-            <input
-              className="flex-1 bg-white/90 text-gray-800 p-3 rounded-xl border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-              placeholder="Enter property address"
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                setAddressFromUrl(false);
-                setIsViewingSavedProperty(false);
-                setHasProcessedUrlParams(false);
-                setCheckedIfSavedProperty(false);
-              }}
-            />
-            <button
-              type="submit"
-              disabled={isButtonDisabled()}
-              className={`px-6 py-3 rounded-xl transition text-white font-semibold shadow-lg ${
-                isButtonDisabled()
-                  ? "bg-gray-500 cursor-not-allowed"
-                  : "bg-cyan-500 hover:bg-cyan-600"
-              }`}
-            >
-              {getButtonText()}
-            </button>
-          </form>
-        </div>
+        {/* Progress indicator */}
+        <ProgressIndicator
+          currentTab={tab}
+          addressConfirmed={addressConfirmed}
+          conditionCompleted={conditionCompleted}
+          baselineCompleted={baselineCompleted}
+        />
 
-        {userId && !subscriptionLoading && !usageLoading && subscription && (
-          <div className="mb-6 rounded-xl bg-white/10 p-4 border border-white/10">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm opacity-80">CMA Usage This Month</div>
-                <div className="text-lg font-semibold">
-                  {safeCheckUsageLimit().usedCount} /{" "}
-                  {safeCheckUsageLimit().limit} used
-                </div>
-                <div className="text-xs opacity-75">
-                  {safeCheckUsageLimit().remaining} remaining on {getPlanName()}{" "}
-                  plan
-                </div>
-              </div>
-              <div className="text-right">
-                <div
-                  className={`text-sm font-medium ${
-                    safeCheckUsageLimit().canUse
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {safeCheckUsageLimit().canUse ? "Available" : "Limit Reached"}
-                </div>
-                {!safeCheckUsageLimit().canUse && (
-                  <div className="text-xs opacity-75 mt-1">
-                    Resets next month
-                  </div>
-                )}
-              </div>
-            </div>
+        {/* Usage Display */}
+        <UsageDisplay
+          userId={userId}
+          subscriptionLoading={subscriptionLoading}
+          usageLoading={usageLoading}
+          subscription={subscription}
+          safeCheckUsageLimit={safeCheckUsageLimit}
+          getPlanName={getPlanName}
+        />
 
-            <div className="mt-3">
-              <div className="w-full bg-white/20 rounded-full h-2">
-                <div
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    safeCheckUsageLimit().usedCount >=
-                    safeCheckUsageLimit().limit
-                      ? "bg-red-500"
-                      : safeCheckUsageLimit().usedCount >=
-                        safeCheckUsageLimit().limit * 0.8
-                      ? "bg-yellow-500"
-                      : "bg-green-500"
-                  }`}
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      safeCheckUsageLimit().limit > 0
-                        ? (safeCheckUsageLimit().usedCount /
-                            safeCheckUsageLimit().limit) *
-                            100
-                        : 0
-                    )}%`,
-                  }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        )}
-
+        {/* Subscription Required Message */}
         {userId &&
           !subscriptionLoading &&
           !subscription &&
@@ -539,7 +374,7 @@ export default function CMA() {
               </div>
               <div className="opacity-90 text-orange-100">
                 You need an active Premium or Pro subscription to use the CMA
-                feature.
+                feature.{" "}
                 <a href="/dashboard" className="underline hover:no-underline">
                   Upgrade your plan
                 </a>{" "}
@@ -561,513 +396,102 @@ export default function CMA() {
           </div>
         )}
 
-        {/* Tabs */}
-        {baselineData && (
-          <>
-            <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setTab("snapshot")}
-                className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  tab === "snapshot"
-                    ? "bg-cyan-500 text-white shadow-lg"
-                    : "bg-white/20 text-white hover:bg-white/30"
-                }`}
-              >
-                Snapshot
-              </button>
-              <button
-                onClick={() => setTab("adjustments")}
-                className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  tab === "adjustments"
-                    ? "bg-cyan-500 text-white shadow-lg"
-                    : "bg-white/20 text-white hover:bg-white/30"
-                }`}
-              >
-                Adjustments
-              </button>
-              <button
-                onClick={() => setTab("result")}
-                className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  tab === "result"
-                    ? "bg-cyan-500 text-white shadow-lg"
-                    : "bg-white/20 text-white hover:bg-white/30"
-                }`}
-              >
-                Result
-              </button>
-              <button
-                onClick={() => setTab("calculators")}
-                className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  tab === "calculators"
-                    ? "bg-cyan-500 text-white shadow-lg"
-                    : "bg-white/20 text-white hover:bg-white/30"
-                }`}
-              >
-                Calculators
-              </button>
-            </div>
+        {/* Tab Navigation */}
+        <TabNavigation
+          currentTab={tab}
+          setTab={setTab}
+          addressConfirmed={addressConfirmed}
+          conditionCompleted={conditionCompleted}
+          baselineCompleted={baselineCompleted}
+        />
 
-            {/* Tab content */}
-            {tab === "snapshot" && (
-              <div className="space-y-6">
-                {/* AI Narrative */}
-                {baselineData.explanation && (
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-lg font-semibold mb-1">
-                      AI Analysis
-                    </div>
-                    <div className="opacity-90">{baselineData.explanation}</div>
-                  </div>
-                )}
-
-                {/* Subject Property */}
-                {baselineData.subject && (
-                  <div className="space-y-3">
-                    <div className="text-lg font-semibold">
-                      Subject Property
-                    </div>
-                    {renderPropertyCard(
-                      {
-                        id: "subject",
-                        address: baselineData.subject.address,
-                        raw_price: baselineData.estimate,
-                        living_sqft: baselineData.subject.sqft || 0,
-                        beds: baselineData.subject.beds || 0,
-                        baths: baselineData.subject.baths || 0,
-                        year_built: baselineData.subject.year_built,
-                        lot_sqft: baselineData.subject.lot_sqft,
-                        similarity: 1,
-                      },
-                      true
-                    )}
-                  </div>
-                )}
-
-                {/* Estimate & Rent */}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80">Estimated Value</div>
-                    <div className="text-2xl font-bold">
-                      {baselineData.estimate
-                        ? `$${baselineData.estimate.toLocaleString()}`
-                        : "—"}
-                    </div>
-                    <div className="text-xs opacity-75 mt-1">Baseline CMA</div>
-                  </div>
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80">
-                      Estimated Monthly Rent
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {monthlyRent !== null
-                        ? `$${monthlyRent.toLocaleString()}`
-                        : "—"}
-                    </div>
-                  </div>
-                </div>
-
-                {Array.isArray(baselineData.comps) &&
-                  baselineData.comps.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="text-lg font-semibold">
-                        Comparable Properties
-                      </div>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        {baselineData.comps.map((comp: Comp, idx: number) =>
-                          renderPropertyCard(comp)
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                <div className="flex gap-3 mt-4">
-                  <button
-                    onClick={() => downloadPdf(false)}
-                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg"
-                  >
-                    Download PDF
-                  </button>
-
-                  <button
-                    onClick={saveProperty}
-                    className="px-6 py-3 rounded-xl bg-white/20 hover:bg-white/30 transition text-white font-medium"
-                  >
-                    {saved ? "Saved" : saving ? "Saving..." : "Save Property"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {tab === "adjustments" && (
-              <div className="space-y-6">
-                <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                  <div className="text-lg font-semibold mb-3">
-                    Adjust Property
-                  </div>
-
-                  {/* Condition */}
-                  <label className="block text-sm mb-1">Condition</label>
-                  <select
-                    value={condition}
-                    onChange={(e) => setCondition(e.target.value as any)}
-                    className="w-full bg-white/90 text-gray-800 p-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                  >
-                    <option>Poor</option>
-                    <option>Fair</option>
-                    <option>Good</option>
-                    <option>Excellent</option>
-                  </select>
-
-                  {/* Renovations */}
-                  <div className="mt-4">
-                    <div className="text-sm mb-2">Renovations</div>
-                    <div className="flex flex-wrap gap-3">
-                      {["Kitchen", "Bath", "Flooring", "Roof", "Windows"].map(
-                        (opt) => (
-                          <label
-                            key={opt}
-                            className="inline-flex items-center gap-2"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={renovations.includes(opt.toLowerCase())}
-                              onChange={() =>
-                                toggleRenovation(opt.toLowerCase())
-                              }
-                            />
-                            {opt}
-                          </label>
-                        )
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Adds */}
-                  <div className="mt-4 grid sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-sm mb-1">Add Beds</label>
-                      <input
-                        type="number"
-                        value={addBeds}
-                        onChange={(e) => setAddBeds(Number(e.target.value))}
-                        className="w-full bg-white/90 text-gray-800 p-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">Add Baths</label>
-                      <input
-                        type="number"
-                        value={addBaths}
-                        onChange={(e) => setAddBaths(Number(e.target.value))}
-                        className="w-full bg-white/90 text-gray-800 p-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm mb-1">Add Sqft</label>
-                      <input
-                        type="number"
-                        value={addSqft}
-                        onChange={(e) => setAddSqft(Number(e.target.value))}
-                        className="w-full bg-white/90 text-gray-800 p-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Summary chips */}
-                  {getAdjustmentChips().length > 0 && (
-                    <div className="mt-4">
-                      <div className="text-sm mb-2">Adjustment Summary</div>
-                      <div className="flex flex-wrap gap-2">
-                        {getAdjustmentChips().map((chip, idx) => (
-                          <div
-                            key={idx}
-                            className="px-3 py-1 rounded-full bg-white/20 text-xs border border-white/20"
-                          >
-                            {chip.label}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-5">
-                    <button
-                      onClick={applyAdjustments}
-                      disabled={loading}
-                      className={`px-6 py-3 rounded-xl font-semibold shadow-lg transition ${
-                        loading
-                          ? "bg-gray-500 cursor-not-allowed text-white"
-                          : "bg-cyan-500 hover:bg-cyan-600 text-white"
-                      }`}
-                    >
-                      {loading ? "Applying..." : "Apply Adjustments"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {tab === "result" && adjustedData && (
-              <div className="space-y-6">
-                {/* Side-by-side values */}
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80">Baseline Value</div>
-                    <div className="text-2xl font-bold">
-                      {baselineData.estimate
-                        ? `${baselineData.estimate.toLocaleString()}`
-                        : "—"}
-                    </div>
-                    <div className="text-xs opacity-75 mt-1">
-                      Original Estimate
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80">Adjusted Value</div>
-                    <div className="text-2xl font-bold">
-                      {adjustedData.estimate
-                        ? `${adjustedData.estimate.toLocaleString()}`
-                        : "—"}
-                    </div>
-                    <div className="text-xs opacity-75 mt-1">
-                      After Adjustments
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80">
-                      Baseline Monthly Rent
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {monthlyRent !== null
-                        ? `${monthlyRent.toLocaleString()}`
-                        : "—"}
-                    </div>
-                    <div className="text-xs opacity-75 mt-1">
-                      Original Estimate
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80">
-                      Adjusted Monthly Rent
-                    </div>
-                    <div className="text-2xl font-bold">
-                      {adjustedMonthlyRent !== null
-                        ? `${adjustedMonthlyRent.toLocaleString()}`
-                        : monthlyRent !== null
-                        ? `${monthlyRent.toLocaleString()}`
-                        : "—"}
-                    </div>
-                    <div className="text-xs opacity-75 mt-1">
-                      {adjustedMonthlyRent !== null
-                        ? "After Adjustments"
-                        : "No Change"}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80 mb-1">Value Change</div>
-                    <div className="text-xl font-semibold">
-                      {baselineData?.estimate && adjustedData?.estimate ? (
-                        <>
-                          {adjustedData.estimate > baselineData.estimate
-                            ? "+"
-                            : "-"}
-                          $
-                          {Math.abs(
-                            adjustedData.estimate - baselineData.estimate
-                          ).toLocaleString()}{" "}
-                          (
-                          {(
-                            ((adjustedData.estimate - baselineData.estimate) /
-                              baselineData.estimate) *
-                            100
-                          ).toFixed(1)}
-                          %)
-                        </>
-                      ) : (
-                        "—"
-                      )}
-                    </div>
-                  </div>
-                  <div className="rounded-xl bg-white/10 p-4 border border-white/10">
-                    <div className="text-sm opacity-80 mb-1">Rent Change</div>
-                    <div className="text-xl font-semibold">
-                      {monthlyRent !== null &&
-                      adjustedMonthlyRent !== null &&
-                      adjustedMonthlyRent !== monthlyRent ? (
-                        <>
-                          {adjustedMonthlyRent > monthlyRent ? "+" : "-"}$
-                          {Math.abs(
-                            adjustedMonthlyRent - monthlyRent
-                          ).toLocaleString()}{" "}
-                          (
-                          {(
-                            ((adjustedMonthlyRent - monthlyRent) /
-                              monthlyRent) *
-                            100
-                          ).toFixed(1)}
-                          %)
-                        </>
-                      ) : (
-                        "No Change"
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Updated comps */}
-                {Array.isArray(adjustedData.comps) &&
-                  adjustedData.comps.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="text-lg font-semibold">
-                        Updated Comparables
-                      </div>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        {adjustedData.comps.map((comp: Comp, idx: number) =>
-                          renderPropertyCard(comp)
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                <div className="flex gap-3 mt-2">
-                  <button
-                    onClick={() => downloadPdf(true)}
-                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg"
-                  >
-                    Download Adjusted PDF
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {tab === "calculators" && (
-              <InvestmentCalculators
-                baselineData={baselineData}
-                adjustedData={adjustedData}
-                monthlyRent={monthlyRent}
-                adjustedMonthlyRent={adjustedMonthlyRent}
-              />
-            )}
-          </>
+        {/* Tab Content */}
+        {tab === "address" && (
+          <AddressTab
+            address={address}
+            setAddress={setAddress}
+            onContinue={handleAddressContinue}
+            onAddressChange={handleAddressChange}
+          />
         )}
 
-        {/* Initial state */}
-        {!baselineData && !loading && !error && (
-          <div className="rounded-xl bg-white/10 p-6 border border-white/10 text-center">
-            Enter an address above, then click{" "}
-            <span className="font-semibold">Run CMA</span>.
+        {tab === "condition" && (
+          <ConditionTab
+            conditionMode={conditionMode}
+            setConditionMode={setConditionMode}
+            propertyCondition={propertyCondition}
+            setPropertyCondition={setPropertyCondition}
+            onContinue={handleConditionContinue}
+          />
+        )}
+
+        {tab === "baseline" && baselineData && (
+          <BaselineTab
+            baselineData={baselineData}
+            monthlyRent={monthlyRent}
+            onDownloadPdf={() => downloadPdf(false)}
+            onSaveProperty={saveProperty}
+            onMakeAdjustments={() => setTab("adjustments")}
+            saved={saved}
+            saving={saving}
+          />
+        )}
+
+        {tab === "adjustments" && (
+          <AdjustmentsTab
+            condition={condition}
+            setCondition={setCondition}
+            renovations={renovations}
+            toggleRenovation={toggleRenovation}
+            addBeds={addBeds}
+            setAddBeds={setAddBeds}
+            addBaths={addBaths}
+            setAddBaths={setAddBaths}
+            addSqft={addSqft}
+            setAddSqft={setAddSqft}
+            onApplyAdjustments={applyAdjustments}
+            loading={loading}
+          />
+        )}
+
+        {tab === "result" && adjustedData && (
+          <ResultsTab
+            baselineData={baselineData}
+            adjustedData={adjustedData}
+            monthlyRent={monthlyRent}
+            adjustedMonthlyRent={adjustedMonthlyRent}
+            onDownloadPdf={() => downloadPdf(true)}
+            onGoToCalculators={() => setTab("calculators")}
+          />
+        )}
+
+        {tab === "calculators" && (
+          <InvestmentCalculators
+            baselineData={baselineData}
+            adjustedData={adjustedData}
+            monthlyRent={monthlyRent}
+            adjustedMonthlyRent={adjustedMonthlyRent}
+          />
+        )}
+
+        {/* Initial state - only show on address tab if no address confirmed */}
+        {tab === "address" && !addressConfirmed && !baselineData && !loading && !error && (
+          <div className="rounded-xl bg-white/10 p-6 border border-white/10 text-center mt-6">
+            <div className="text-lg font-semibold mb-2">Welcome to CMA Analysis</div>
+            <div className="opacity-80">
+              Follow the step-by-step process to get comprehensive property analysis and investment insights.
+            </div>
           </div>
         )}
       </div>
 
-      {showSaveModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <div className="text-center">
-              <div className="mb-4">
-                {saveModalType === "success" && (
-                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-8 h-8 text-green-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M5 13l4 4L19 7"
-                      ></path>
-                    </svg>
-                  </div>
-                )}
-                {saveModalType === "error" && (
-                  <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-8 h-8 text-red-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M6 18L18 6M6 6l12 12"
-                      ></path>
-                    </svg>
-                  </div>
-                )}
-                {saveModalType === "login" && (
-                  <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-8 h-8 text-blue-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      ></path>
-                    </svg>
-                  </div>
-                )}
-              </div>
-
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {saveModalType === "success" && "Property Saved!"}
-                {saveModalType === "error" && "Save Failed"}
-                {saveModalType === "login" && "Login Required"}
-              </h3>
-
-              <p className="text-gray-600 mb-6">{saveModalMessage}</p>
-
-              <div className="flex gap-3 justify-center">
-                {saveModalType === "login" ? (
-                  <>
-                    <button
-                      onClick={() => setShowSaveModal(false)}
-                      className="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowSaveModal(false);
-                        window.location.href = "/login";
-                      }}
-                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-                    >
-                      Go to Login
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => setShowSaveModal(false)}
-                    className={`px-6 py-2 rounded-lg transition ${
-                      saveModalType === "success"
-                        ? "bg-green-600 hover:bg-green-700 text-white"
-                        : "bg-red-600 hover:bg-red-700 text-white"
-                    }`}
-                  >
-                    {saveModalType === "success" ? "Great!" : "OK"}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Save Modal */}
+      <SaveModal
+        showModal={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        modalType={saveModalType}
+        message={saveModalMessage}
+      />
     </div>
   );
 }
