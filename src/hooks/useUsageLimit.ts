@@ -19,7 +19,7 @@ export interface UsageLimits {
 
 const USAGE_LIMITS: UsageLimits = {
   premium_cma_limit: 50,
-  pro_cma_limit: 100,
+  pro_cma_limit: 200,
 };
 
 export function useUsageLimit(
