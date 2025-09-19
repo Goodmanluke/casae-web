@@ -454,6 +454,7 @@ export default function CMA() {
             propertyCondition={propertyCondition}
             setPropertyCondition={setPropertyCondition}
             onContinue={handleConditionContinue}
+            loading={loading}
           />
         )}
 
