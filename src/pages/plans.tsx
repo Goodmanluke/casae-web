@@ -10,6 +10,7 @@ const PlansPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | undefined>();
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [notification, setNotification] = useState<{
     message: string;
     type: "success" | "error" | "info" | "warning";
@@ -25,6 +26,7 @@ const PlansPage = () => {
     hasProAccess,
     changePlan,
     getAvailablePlans,
+    cancelSubscription,
   } = useSubscription(userId);
 
   useEffect(() => {
@@ -194,6 +196,31 @@ const PlansPage = () => {
     }
   };
 
+  const handleCancelSubscription = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await cancelSubscription();
+      setShowCancelConfirm(false);
+      setNotification({
+        message:
+          "Subscription will be canceled at the end of your current billing period.",
+        type: "success",
+      });
+      window.location.reload();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to cancel subscription"
+      );
+      setNotification({
+        message: "Failed to cancel subscription. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculateDaysRemaining = (endDate: string) => {
     const end = new Date(endDate);
     const now = new Date();
@@ -250,7 +277,7 @@ const PlansPage = () => {
                 canInteract = true;
               } else if (isCurrentPlan) {
                 planAction = "current";
-                canInteract = false;
+                canInteract = true;
               } else if (isPremium) {
                 planAction = "upgrade";
                 canInteract = true;
@@ -386,11 +413,17 @@ const PlansPage = () => {
                           handlePlanChange(plan.id, "upgrade");
                         } else if (planAction === "downgrade") {
                           handlePlanChange(plan.id, "downgrade");
+                        } else if (planAction === "current") {
+                          setShowCancelConfirm(true);
                         }
                       }}
-                      disabled={loading || !canInteract}
+                      disabled={loading}
                       className={`w-full font-semibold py-4 rounded-2xl transition-all duration-300 ${
-                        !canInteract
+                        planAction === "current"
+                          ? subscription?.cancel_at_period_end
+                            ? "bg-gradient-to-r from-gray-500 to-gray-600 text-white cursor-not-allowed disabled:opacity-50"
+                            : "bg-gradient-to-r from-red-500 to-red-600 hover:opacity-90 text-white transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                          : planAction === "unavailable"
                           ? "bg-gray-500/50 text-gray-300 cursor-not-allowed border border-gray-400/30"
                           : planAction === "downgrade"
                           ? "bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90 text-white transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
@@ -403,22 +436,41 @@ const PlansPage = () => {
                           Processing...
                         </div>
                       ) : planAction === "current" ? (
-                        <div className="flex items-center justify-center">
-                          <svg
-                            className="w-5 h-5 text-gray-300 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          Current Plan
-                        </div>
+                        subscription?.cancel_at_period_end ? (
+                          <div className="flex items-center justify-center">
+                            <svg
+                              className="w-5 h-5 text-white mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            Cancellation Scheduled
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-center">
+                            <svg
+                              className="w-5 h-5 text-white mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                            Cancel Subscription
+                          </div>
+                        )
                       ) : planAction === "upgrade" ? (
                         <div className="flex items-center justify-center">
                           <svg
@@ -473,6 +525,36 @@ const PlansPage = () => {
             })}
           </div>
         </main>
+
+        {showCancelConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Cancel Subscription
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to cancel your subscription? You'll
+                continue to have access until the end of your current billing
+                period.
+              </p>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Keep Subscription
+                </button>
+                <button
+                  onClick={handleCancelSubscription}
+                  disabled={loading}
+                  className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? "Canceling..." : "Yes, Cancel"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

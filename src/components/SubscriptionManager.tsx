@@ -183,6 +183,51 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
           </div>
         )}
       </div>
+
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        {!subscription.cancel_at_period_end && (
+          <button
+            onClick={() => setShowCancelConfirm(true)}
+            disabled={actionLoading}
+            className="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+            {actionLoading ? "Processing..." : "Cancel Subscription"}
+          </button>
+        )}
+        
+        <button
+          onClick={() => router.push("/plans")}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+            />
+          </svg>
+          Change Plan
+        </button>
+      </div>
       {(error || actionError) && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-red-800 text-sm">{error || actionError}</p>
