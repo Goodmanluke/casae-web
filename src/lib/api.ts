@@ -136,8 +136,14 @@ export async function getRentEstimate(
     bathrooms?: number;
     squareFootage?: number;
     propertyType?: string;
+    condition?: string;
+    renovations?: string[];
   }
-): Promise<{ monthly_rent: number | null }> {
+): Promise<{
+  monthly_rent: number | null;
+  base_rent?: number;
+  adjustments_applied?: boolean;
+}> {
   const params: Record<string, any> = { address };
 
   if (propertyDetails?.bedrooms) params.bedrooms = propertyDetails.bedrooms;
@@ -146,12 +152,16 @@ export async function getRentEstimate(
     params.squareFootage = propertyDetails.squareFootage;
   if (propertyDetails?.propertyType)
     params.propertyType = propertyDetails.propertyType;
+  if (propertyDetails?.condition) params.condition = propertyDetails.condition;
+  if (propertyDetails?.renovations)
+    params.renovations = propertyDetails.renovations;
 
   const qs = toQS(params);
-  return request<{ monthly_rent: number | null }>(
-    `${API_BASE}/rent/estimate?${qs}`,
-    {
-      method: "GET",
-    }
-  );
+  return request<{
+    monthly_rent: number | null;
+    base_rent?: number;
+    adjustments_applied?: boolean;
+  }>(`${API_BASE}/rent/estimate?${qs}`, {
+    method: "GET",
+  });
 }
