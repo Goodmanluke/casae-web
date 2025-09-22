@@ -232,6 +232,8 @@ export default function CMA() {
           bathrooms: data.subject.baths,
           squareFootage: data.subject.sqft,
           propertyType: data.subject.property_type,
+          condition: conditionForAPI,
+          renovations: ["kitchen", "bath", "flooring", "roof", "windows"],
         };
         getRentEstimate(address.trim(), propertyDetails)
           .then((r) => setMonthlyRent(r?.monthly_rent ?? null))
@@ -269,6 +271,11 @@ export default function CMA() {
             bathrooms: data.subject.baths,
             squareFootage: data.subject.sqft,
             propertyType: data.subject.property_type,
+            condition: condition, // NEW: Include adjusted condition
+            renovations:
+              renovations.length > 0
+                ? renovations
+                : ["kitchen", "bath", "flooring", "roof", "windows"], // NEW: Include adjusted renovations
           };
           const rentData = await getRentEstimate(
             data.subject.address,
