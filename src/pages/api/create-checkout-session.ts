@@ -48,7 +48,7 @@ export default async function handler(
   }
 
   try {
-    const { userId, planId, successUrl, cancelUrl } = req.body;
+    const { userId, planId, successUrl, cancelUrl, referralId } = req.body;
 
     if (!userId || !planId || !successUrl || !cancelUrl) {
       console.log("Missing required fields:", {
@@ -119,6 +119,15 @@ export default async function handler(
         .json({ error: "Stripe price ID not configured for this plan" });
     }
 
+    const metadata: any = {
+      userId,
+      planId: subscriptionId || "",
+    };
+
+    if (referralId) {
+      metadata.referral_id = referralId;
+    }
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -132,10 +141,7 @@ export default async function handler(
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
       client_reference_id: userId,
-      metadata: {
-        userId,
-        planId: subscriptionId || "",
-      },
+      metadata,
     });
 
     res.status(200).json({ sessionId: session.id, url: session.url });

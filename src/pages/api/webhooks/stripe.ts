@@ -119,6 +119,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const userId = session.metadata?.userId;
   const planId = session.metadata?.planId;
+  const referralId = session.metadata?.referral_id;
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
 
@@ -130,7 +131,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   try {
     const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-    const { error } = await supabase.from("user_subscriptions").upsert({
+    const subscriptionData: any = {
       user_id: userId,
       stripe_subscription_id: subscriptionId,
       stripe_customer_id: customerId,
@@ -143,12 +144,30 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         subscription.current_period_end * 1000
       ).toISOString(),
       cancel_at_period_end: subscription.cancel_at_period_end,
-    });
+    };
+
+    if (referralId) {
+      subscriptionData.referral_id = referralId;
+    }
+
+    const { error } = await supabase
+      .from("user_subscriptions")
+      .upsert(subscriptionData);
 
     if (error) {
       console.error("Error upserting subscription:", error);
     } else {
       console.log("Subscription created/updated successfully");
+
+      if (referralId) {
+        console.log("Tracking Rewardful conversion for referral:", referralId);
+        await trackRewardfulConversion(
+          userId,
+          subscriptionId,
+          referralId,
+          subscription
+        );
+      }
     }
   } catch (error) {
     console.error("Error handling checkout completed:", error);
@@ -277,6 +296,66 @@ async function getRawBodyVercel(req: NextApiRequest): Promise<Buffer> {
       reject(err);
     });
   });
+}
+
+/**
+ * Track conversion in Rewardful when a subscription is created
+ */
+async function trackRewardfulConversion(
+  userId: string,
+  subscriptionId: string,
+  referralId: string,
+  subscription: Stripe.Subscription
+) {
+  try {
+    const { data: user, error: userError } =
+      await supabase.auth.admin.getUserById(userId);
+
+    if (userError || !user) {
+      console.error("Error getting user for Rewardful conversion:", userError);
+      return;
+    }
+
+    const email = user.user?.email;
+    if (!email) {
+      console.error("No email found for user:", userId);
+      return;
+    }
+    const amount = subscription.items.data[0]?.price.unit_amount || 0;
+    const amountInDollars = amount / 100; // Convert from cents
+    const rewardfulApiKey = process.env.NEXT_PUBLIC_REWARDFUL_API_KEY;
+    if (!rewardfulApiKey) {
+      console.error("Rewardful API key not configured");
+      return;
+    }
+
+    const rewardfulData = {
+      email,
+      referral_id: referralId,
+      amount: amountInDollars,
+      order_id: subscriptionId,
+    };
+
+    const { error: conversionError } = await supabase
+      .from("rewardful_conversions")
+      .insert({
+        user_id: userId,
+        referral_id: referralId,
+        subscription_id: subscriptionId,
+        email,
+        amount: amountInDollars,
+        status: "pending",
+        created_at: new Date().toISOString(),
+      });
+
+    if (conversionError) {
+      console.error("Error storing Rewardful conversion:", conversionError);
+    } else {
+      console.log("Rewardful conversion stored successfully");
+    }
+  } catch (error) {
+    console.error("Error tracking Rewardful conversion:", error);
+  }
 }
 
 export const config = {

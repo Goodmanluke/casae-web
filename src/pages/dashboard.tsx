@@ -3,6 +3,7 @@ import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
 import Navigation from "../components/Navigation";
 import QuickActions from "../components/QuickActions";
+import ReferralDashboard from "../components/ReferralDashboard";
 import { useSubscription } from "../hooks/useSubscription";
 
 /**
@@ -648,6 +649,10 @@ const Dashboard = () => {
               )}
             </div>
           </div>
+          <div className="mt-12">
+            <ReferralDashboard />
+          </div>
+
           {/* Quick Actions */}
           <QuickActions onSubscribe={handleSubscribe} />
         </main>

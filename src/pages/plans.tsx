@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import Navigation from "../components/Navigation";
 import Notification from "../components/Notification";
 import { useSubscription } from "../hooks/useSubscription";
+import { useRewardful } from "../hooks/useRewardful";
 
 const PlansPage = () => {
   const router = useRouter();
@@ -15,6 +16,8 @@ const PlansPage = () => {
     message: string;
     type: "success" | "error" | "info" | "warning";
   } | null>(null);
+
+  const { isReferred, referralId } = useRewardful();
 
   const {
     subscription,
@@ -132,17 +135,25 @@ const PlansPage = () => {
         return;
       }
 
+      const currentReferralId = referralId;
+
+      const checkoutData: any = {
+        userId: session.user.id,
+        planId: planId,
+        successUrl: `${window.location.origin}/dashboard?success=true`,
+        cancelUrl: `${window.location.origin}/plans?canceled=true`,
+      };
+
+      if (currentReferralId) {
+        checkoutData.referralId = currentReferralId;
+      }
+
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          userId: session.user.id,
-          planId: planId,
-          successUrl: `${window.location.origin}/dashboard?success=true`,
-          cancelUrl: `${window.location.origin}/plans?canceled=true`,
-        }),
+        body: JSON.stringify(checkoutData),
       });
 
       if (!response.ok) {
