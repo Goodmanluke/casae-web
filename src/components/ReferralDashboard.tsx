@@ -164,27 +164,6 @@ export default function ReferralDashboard() {
           )}
         </div>
 
-        {/* Affiliate signup section */}
-        <div>
-          <h3 className="text-lg font-semibold text-white/90 mb-3">
-            Become an Affiliate
-          </h3>
-          <p className="text-white/70 text-sm mb-4">
-            Want to earn more? Join our affiliate program and get detailed
-            tracking and higher commissions.
-          </p>
-
-          <a
-            href={getAffiliateSignupUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-xl border border-white/20 transition-all duration-300 hover:scale-105"
-          >
-            Join Affiliate Program →
-          </a>
-        </div>
-
-        {/* How it works */}
         <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
           <h4 className="text-white font-semibold mb-3">How it works:</h4>
           <ul className="text-white/70 text-sm space-y-2">
