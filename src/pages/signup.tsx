@@ -1,15 +1,23 @@
-import { useState } from 'react';
-import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabase';
-import { logoSrc } from '../lib/logo';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import { supabase } from "../lib/supabase";
+import { logoSrc } from "../lib/logo";
+import { useRewardful } from "../hooks/useRewardful";
 
 export default function Signup() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { trackConversion, isReferred, referralId } = useRewardful();
+
+  useEffect(() => {
+    if (isReferred && referralId) {
+      setMessage("You were referred to CMAi! Sign up to get started.");
+    }
+  }, [isReferred, referralId]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,27 +26,41 @@ export default function Signup() {
     setMessage(null);
 
     if (!email || !password) {
-      setError('Please enter both email and password.');
+      setError("Please enter both email and password.");
       setLoading(false);
       return;
     }
 
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-      const { error } = await supabase.auth.signUp({
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
+      const signupData: any = {
         email,
         password,
-        options: { emailRedirectTo: `${siteUrl}/login` },
-      } as any);
+        options: {
+          emailRedirectTo: `${siteUrl}/login`,
+          data: {},
+        },
+      };
+
+      if (referralId) {
+        signupData.options.data.referral_id = referralId;
+        signupData.options.data.referred = true;
+      }
+
+      const { error } = await supabase.auth.signUp(signupData);
+
       if (error) {
         setError(error.message);
       } else {
-        setMessage('Check your email to confirm your account, then log in.');
-        // Redirect to login after short delay
-        setTimeout(() => router.replace('/login'), 2500);
+        trackConversion(email);
+
+        setMessage("Check your email to confirm your account, then log in.");
+        setTimeout(() => router.replace("/login"), 2500);
       }
     } catch (err: any) {
-      setError(err?.message || 'Signup failed');
+      setError(err?.message || "Signup failed");
     } finally {
       setLoading(false);
     }
@@ -51,7 +73,11 @@ export default function Signup() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="inline-block p-4 bg-white/10 backdrop-blur-md rounded-3xl mb-6 border border-white/20">
-              <img src={logoSrc} alt="CMAi logo" className="h-16 w-16 mx-auto drop-shadow-2xl" />
+              <img
+                src={logoSrc}
+                alt="CMAi logo"
+                className="h-16 w-16 mx-auto drop-shadow-2xl"
+              />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-purple-400 bg-clip-text text-transparent mb-2">
               Create Account
@@ -71,9 +97,11 @@ export default function Signup() {
               </div>
             )}
 
-            <form className="space-y-6" onSubmit={handleSignup}>
+            <form className="space-y-6" onSubmit={handleSignup} data-rewardful>
               <div>
-                <label className="block text-white/80 font-medium mb-3 text-sm uppercase tracking-wide">Email Address</label>
+                <label className="block text-white/80 font-medium mb-3 text-sm uppercase tracking-wide">
+                  Email Address
+                </label>
                 <input
                   type="email"
                   value={email}
@@ -83,7 +111,9 @@ export default function Signup() {
                 />
               </div>
               <div>
-                <label className="block text-white/80 font-medium mb-3 text-sm uppercase tracking-wide">Password</label>
+                <label className="block text-white/80 font-medium mb-3 text-sm uppercase tracking-wide">
+                  Password
+                </label>
                 <input
                   type="password"
                   value={password}
@@ -97,11 +127,11 @@ export default function Signup() {
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
               >
-                {loading ? 'Creating...' : 'Create Account'}
+                {loading ? "Creating..." : "Create Account"}
               </button>
               <button
                 type="button"
-                onClick={() => router.push('/login')}
+                onClick={() => router.push("/login")}
                 className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-3 px-6 rounded-2xl border border-white/20 transition"
               >
                 Back to Login
@@ -113,4 +143,3 @@ export default function Signup() {
     </div>
   );
 }
-
