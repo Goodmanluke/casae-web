@@ -125,10 +125,6 @@ export default async function handler(
     let isExistingAffiliate = false;
     if (affiliateData.links && affiliateData.links.length > 0) {
       linkData = affiliateData.links[0]; // Use the first existing link
-      if (linkData.url && linkData.token) {
-        linkData.url = `https://www.cmai.app/signup?via=${linkData.token}`;
-      }
-
       console.log("Using existing affiliate link:", linkData);
       isExistingAffiliate = true;
     } else {
@@ -151,12 +147,6 @@ export default async function handler(
 
           if (detailedAffiliate.links && detailedAffiliate.links.length > 0) {
             linkData = detailedAffiliate.links[0];
-
-            // Transform the URL to use /signup path instead of query parameter only
-            if (linkData.url && linkData.token) {
-              linkData.url = `https://www.cmai.app/signup?via=${linkData.token}`;
-            }
-
             console.log(
               "Using existing affiliate link from detailed data:",
               linkData
@@ -193,12 +183,6 @@ export default async function handler(
         }
 
         linkData = await linkResponse.json();
-
-        // Transform the URL to use /signup path instead of query parameter only
-        if (linkData.url && linkData.token) {
-          linkData.url = `https://www.cmai.app/signup?via=${linkData.token}`;
-        }
-
         console.log("Created new affiliate link:", linkData);
       }
     }
