@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRewardful } from "../hooks/useRewardful";
 import { supabase } from "../lib/supabase";
+import RewardfulService from "../lib/rewardful";
 
 export default function ReferralDashboard() {
   const { getAffiliateSignupUrl } = useRewardful();
@@ -9,6 +10,12 @@ export default function ReferralDashboard() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [stats, setStats] = useState<{
+    visitors: number;
+    leads: number;
+    conversions: number;
+  } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   // ✅ Get current user on mount
   useEffect(() => {
@@ -24,6 +31,26 @@ export default function ReferralDashboard() {
     getCurrentUser();
   }, []);
 
+  // ✅ Load affiliate stats
+  const loadStats = async (userId: string) => {
+    setStatsLoading(true);
+    try {
+      const response = await fetch(`/api/affiliate-stats?userId=${userId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setStats({
+          visitors: data.visitors || 0,
+          leads: data.leads || 0,
+          conversions: data.conversions || 0,
+        });
+      }
+    } catch (error) {
+      console.error("Error loading affiliate stats:", error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   // ✅ Fetch or create referral link
   const generateReferralLink = async () => {
     if (!userId) {
@@ -36,38 +63,34 @@ export default function ReferralDashboard() {
 
     try {
       // First try to fetch existing affiliate
-      const getResponse = await fetch(
-        `/api/get-affiliate-link?userId=${userId}`
+      const existingAffiliate = await RewardfulService.getUserReferralLink(
+        userId
       );
-      if (getResponse.ok) {
-        const data = await getResponse.json();
-        setReferralLink(data.referral_url);
+      if (existingAffiliate && existingAffiliate.referralUrl) {
+        setReferralLink(existingAffiliate.referralUrl);
         return;
       }
 
-      // If no affiliate found, create new one
+      // If no affiliate found, create new one using Rewardful API
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("User not found");
 
-      const createResponse = await fetch("/api/create-affiliate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: user.id,
-          email: user.email,
-          firstName: user.user_metadata?.first_name || "User",
-          lastName: user.user_metadata?.last_name || "",
-        }),
-      });
+      const affiliateData = await RewardfulService.createAffiliateAndGetLink(
+        user.id,
+        user.email!,
+        user.user_metadata?.first_name || "User",
+        user.user_metadata?.last_name || ""
+      );
 
-      const affiliateData = await createResponse.json();
-      if (!createResponse.ok) {
-        throw new Error(affiliateData.error || "Failed to create affiliate");
+      if (!affiliateData) {
+        throw new Error("Failed to create affiliate with Rewardful API");
       }
 
-      setReferralLink(affiliateData.referral_url);
+      setReferralLink(affiliateData.referralUrl);
+
+      await loadStats(userId);
     } catch (err) {
       console.error("Error generating referral link:", err);
       setError(
@@ -162,6 +185,66 @@ export default function ReferralDashboard() {
               </span>
             </div>
           )}
+        </div>
+
+        {stats && (
+          <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+            <h4 className="text-white font-semibold mb-4">Your Performance</h4>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-cyan-400">
+                  {stats.visitors}
+                </div>
+                <div className="text-white/70 text-sm">Visitors</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-400">
+                  {stats.leads}
+                </div>
+                <div className="text-white/70 text-sm">Leads</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-400">
+                  {stats.conversions}
+                </div>
+                <div className="text-white/70 text-sm">Conversions</div>
+              </div>
+            </div>
+            {statsLoading && (
+              <div className="mt-4 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400 mr-2"></div>
+                <span className="text-white/70 text-sm">Loading stats...</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
+          <h4 className="text-white font-semibold mb-3">Affiliate Dashboard</h4>
+          <p className="text-white/70 text-sm mb-4">
+            Track your referral performance, earnings, and detailed analytics.
+          </p>
+          <a
+            href={RewardfulService.getAffiliateDashboardUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium px-4 py-2 rounded-xl transition-all duration-300"
+          >
+            View Dashboard
+            <svg
+              className="ml-2 w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+          </a>
         </div>
 
         <div className="bg-white/5 rounded-2xl p-6 border border-white/10">

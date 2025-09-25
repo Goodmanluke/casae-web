@@ -50,3 +50,79 @@ export type CMAResponse = {
   explanation: string;
   cma_run_id: string;
 };
+
+// Affiliate/Referral Types
+export interface UserAffiliate {
+  id?: string;
+  user_id: string;
+  rewardful_affiliate_id: string;
+  referral_url: string;
+  token: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AffiliateStats {
+  affiliate_id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  state: 'active' | 'inactive' | 'pending';
+  visitors: number;
+  leads: number;
+  conversions: number;
+  links: AffiliateLink[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AffiliateLink {
+  id: string;
+  url: string;
+  token: string;
+  visitors: number;
+  leads: number;
+  conversions: number;
+  affiliate_id: string;
+}
+
+export interface RewardfulAffiliateResponse {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  paypal_email?: string;
+  state: string;
+  stripe_customer_id?: string;
+  stripe_account_id?: string;
+  visitors: number;
+  leads: number;
+  conversions: number;
+  campaign?: {
+    id: string;
+    created_at: string;
+    updated_at: string;
+    name: string;
+  };
+  links: Array<{
+    id: string;
+    url: string;
+    token: string;
+    visitors: number;
+    leads: number;
+    conversions: number;
+  }>;
+  coupon?: {
+    id: string;
+    external_id: string;
+    token: string;
+    leads: number;
+    conversions: number;
+    affiliate_id: string;
+  };
+}

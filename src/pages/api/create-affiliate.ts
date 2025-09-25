@@ -6,6 +6,9 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const REWARDFUL_API_SECRET = process.env.REWARDFUL_SECRET_KEY;
+const REWARDFUL_API_BASE = "https://api.getrewardful.com/v1";
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -23,6 +26,11 @@ export default async function handler(
         .json({ error: "userId and email are required and must be strings" });
     }
 
+    if (!REWARDFUL_API_SECRET) {
+      console.error("REWARDFUL_SECRET_KEY not configured");
+      return res.status(500).json({ error: "Rewardful API not configured" });
+    }
+
     const { data: existingAffiliate, error: fetchError } = await supabase
       .from("user_affiliates")
       .select("*")
@@ -36,7 +44,7 @@ export default async function handler(
         .json({ error: "Failed to fetch affiliate record" });
     }
 
-    if (existingAffiliate) {
+    if (existingAffiliate && existingAffiliate.rewardful_affiliate_id) {
       return res.status(200).json({
         affiliate_id: existingAffiliate.rewardful_affiliate_id,
         referral_url: existingAffiliate.referral_url,
@@ -45,28 +53,79 @@ export default async function handler(
       });
     }
 
-    const userToken = `user-${userId.substring(0, 8)}-${Date.now()
-      .toString()
-      .slice(-6)}`;
+    // Create affiliate using Rewardful API
+    const affiliateResponse = await fetch(`${REWARDFUL_API_BASE}/affiliates`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(
+          `${REWARDFUL_API_SECRET}:`
+        ).toString("base64")}`,
+      },
+      body: new URLSearchParams({
+        first_name: firstName || "User",
+        last_name: lastName || "#",
+        email: email,
+      }).toString(),
+    });
 
-    const baseUrl =
-      (process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-        "https://www.casae.com") + "/signup";
+    if (!affiliateResponse.ok) {
+      const errorText = await affiliateResponse.text();
+      console.error("Rewardful API error:", errorText);
+      return res.status(500).json({
+        error: "Failed to create affiliate with Rewardful",
+        details: errorText,
+      });
+    }
 
-    const referralUrl = `${baseUrl}/?via=${encodeURIComponent(userToken)}`;
+    const affiliateData = await affiliateResponse.json();
+    console.log("Created affiliate:", affiliateData);
 
+    // Create affiliate link using Rewardful API
+    const linkResponse = await fetch(`${REWARDFUL_API_BASE}/affiliate_links`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${Buffer.from(
+          `${REWARDFUL_API_SECRET}:`
+        ).toString("base64")}`,
+      },
+      body: new URLSearchParams({
+        affiliate_id: affiliateData.id,
+      }).toString(),
+    });
+
+    if (!linkResponse.ok) {
+      const errorText = await linkResponse.text();
+      console.error("Rewardful link API error:", errorText);
+      return res.status(500).json({
+        error: "Failed to create affiliate link with Rewardful",
+        details: errorText,
+      });
+    }
+
+    const linkData = await linkResponse.json();
+    console.log("Created affiliate link:", linkData);
+
+    // Store affiliate data in our database
     const { data: newAffiliate, error: insertError } = await supabase
       .from("user_affiliates")
-      .insert({
-        user_id: userId,
-        rewardful_affiliate_id: `affiliate_${userId}`,
-        referral_url: referralUrl,
-        token: userToken,
-        email,
-        first_name: firstName || "User",
-        last_name: lastName || "",
-        created_at: new Date().toISOString(),
-      })
+      .upsert(
+        {
+          user_id: userId,
+          rewardful_affiliate_id: affiliateData.id,
+          referral_url: linkData.url,
+          token: linkData.token,
+          email,
+          first_name: firstName || "User",
+          last_name: lastName || "",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "user_id",
+        }
+      )
       .select()
       .single();
 
@@ -74,7 +133,7 @@ export default async function handler(
       console.error("Error storing affiliate data:", insertError);
       return res
         .status(500)
-        .json({ error: "Failed to create affiliate record" });
+        .json({ error: "Failed to store affiliate record" });
     }
 
     return res.status(201).json({
