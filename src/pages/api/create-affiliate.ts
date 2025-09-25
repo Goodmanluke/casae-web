@@ -31,6 +31,7 @@ export default async function handler(
       return res.status(500).json({ error: "Rewardful API not configured" });
     }
 
+    // First check our database for existing affiliate
     const { data: existingAffiliate, error: fetchError } = await supabase
       .from("user_affiliates")
       .select("*")
@@ -52,82 +53,197 @@ export default async function handler(
         existing: true,
       });
     }
+    console.log("here is email::", email);
+    // Check if affiliate exists in Rewardful by email
+    const checkAffiliateResponse = await fetch(
+      `${REWARDFUL_API_BASE}/affiliates?email=${encodeURIComponent(email)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Basic ${Buffer.from(
+            `${REWARDFUL_API_SECRET}:`
+          ).toString("base64")}`,
+        },
+      }
+    );
 
-    // Create affiliate using Rewardful API
-    const affiliateResponse = await fetch(`${REWARDFUL_API_BASE}/affiliates`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(
-          `${REWARDFUL_API_SECRET}:`
-        ).toString("base64")}`,
-      },
-      body: new URLSearchParams({
-        first_name: firstName || "User",
-        last_name: lastName || "#",
-        email: email,
-      }).toString(),
-    });
+    let affiliateData = null;
 
-    if (!affiliateResponse.ok) {
-      const errorText = await affiliateResponse.text();
-      console.error("Rewardful API error:", errorText);
-      return res.status(500).json({
-        error: "Failed to create affiliate with Rewardful",
-        details: errorText,
-      });
+    if (checkAffiliateResponse.ok) {
+      const affiliateResponse = await checkAffiliateResponse.json();
+      console.log("Existing affiliates found:", affiliateResponse);
+
+      if (
+        affiliateResponse &&
+        affiliateResponse.data &&
+        affiliateResponse.data.length > 0
+      ) {
+        // Use the first matching affiliate
+        affiliateData = affiliateResponse.data[0];
+        console.log("Using existing affiliate:", affiliateData);
+      }
+    } else {
+      console.log(
+        "No existing affiliate found or error checking:",
+        await checkAffiliateResponse.text()
+      );
     }
 
-    const affiliateData = await affiliateResponse.json();
-    console.log("Created affiliate:", affiliateData);
+    if (!affiliateData) {
+      const affiliateResponse = await fetch(
+        `${REWARDFUL_API_BASE}/affiliates`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: `Basic ${Buffer.from(
+              `${REWARDFUL_API_SECRET}:`
+            ).toString("base64")}`,
+          },
+          body: new URLSearchParams({
+            first_name: firstName || "User",
+            last_name: lastName || "#",
+            email: email,
+          }).toString(),
+        }
+      );
 
-    // Create affiliate link using Rewardful API
-    const linkResponse = await fetch(`${REWARDFUL_API_BASE}/affiliate_links`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(
-          `${REWARDFUL_API_SECRET}:`
-        ).toString("base64")}`,
-      },
-      body: new URLSearchParams({
-        affiliate_id: affiliateData.id,
-      }).toString(),
-    });
+      if (!affiliateResponse.ok) {
+        const errorText = await affiliateResponse.text();
+        console.error("Rewardful API error:", errorText);
+        return res.status(500).json({
+          error: "Failed to create affiliate with Rewardful",
+          details: errorText,
+        });
+      }
 
-    if (!linkResponse.ok) {
-      const errorText = await linkResponse.text();
-      console.error("Rewardful link API error:", errorText);
-      return res.status(500).json({
-        error: "Failed to create affiliate link with Rewardful",
-        details: errorText,
-      });
+      affiliateData = await affiliateResponse.json();
+      console.log("Created new affiliate:", affiliateData);
     }
 
-    const linkData = await linkResponse.json();
-    console.log("Created affiliate link:", linkData);
+    let linkData = null;
+    let isExistingAffiliate = false;
+    if (affiliateData.links && affiliateData.links.length > 0) {
+      linkData = affiliateData.links[0]; // Use the first existing link
+      if (linkData.url && linkData.token) {
+        linkData.url = `https://www.cmai.app/signup?via=${linkData.token}`;
+      }
+
+      console.log("Using existing affiliate link:", linkData);
+      isExistingAffiliate = true;
+    } else {
+      if (affiliateData && !affiliateData.hasOwnProperty("links")) {
+        const affiliateDetailResponse = await fetch(
+          `${REWARDFUL_API_BASE}/affiliates/${affiliateData.id}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Basic ${Buffer.from(
+                `${REWARDFUL_API_SECRET}:`
+              ).toString("base64")}`,
+            },
+          }
+        );
+
+        if (affiliateDetailResponse.ok) {
+          const detailedAffiliate = await affiliateDetailResponse.json();
+          console.log("Detailed affiliate data:", detailedAffiliate);
+
+          if (detailedAffiliate.links && detailedAffiliate.links.length > 0) {
+            linkData = detailedAffiliate.links[0];
+
+            // Transform the URL to use /signup path instead of query parameter only
+            if (linkData.url && linkData.token) {
+              linkData.url = `https://www.cmai.app/signup?via=${linkData.token}`;
+            }
+
+            console.log(
+              "Using existing affiliate link from detailed data:",
+              linkData
+            );
+            isExistingAffiliate = true;
+          }
+        }
+      }
+
+      if (!linkData) {
+        const linkResponse = await fetch(
+          `${REWARDFUL_API_BASE}/affiliate_links`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization: `Basic ${Buffer.from(
+                `${REWARDFUL_API_SECRET}:`
+              ).toString("base64")}`,
+            },
+            body: new URLSearchParams({
+              affiliate_id: affiliateData.id,
+            }).toString(),
+          }
+        );
+
+        if (!linkResponse.ok) {
+          const errorText = await linkResponse.text();
+          console.error("Rewardful link API error:", errorText);
+          return res.status(500).json({
+            error: "Failed to create affiliate link with Rewardful",
+            details: errorText,
+          });
+        }
+
+        linkData = await linkResponse.json();
+
+        // Transform the URL to use /signup path instead of query parameter only
+        if (linkData.url && linkData.token) {
+          linkData.url = `https://www.cmai.app/signup?via=${linkData.token}`;
+        }
+
+        console.log("Created new affiliate link:", linkData);
+      }
+    }
 
     // Store affiliate data in our database
-    const { data: newAffiliate, error: insertError } = await supabase
+    // First try to update existing record
+    const { data: updatedAffiliate, error: updateError } = await supabase
       .from("user_affiliates")
-      .upsert(
-        {
+      .update({
+        rewardful_affiliate_id: affiliateData.id,
+        referral_url: linkData.url,
+        token: linkData.token,
+        email,
+        first_name: affiliateData.first_name || firstName || "User",
+        last_name: affiliateData.last_name || lastName || "",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId)
+      .select()
+      .maybeSingle();
+
+    let newAffiliate = updatedAffiliate;
+    let insertError = updateError;
+
+    // If no existing record was updated, insert a new one
+    if (!updatedAffiliate && !updateError) {
+      const { data: insertedAffiliate, error: insertErr } = await supabase
+        .from("user_affiliates")
+        .insert({
           user_id: userId,
           rewardful_affiliate_id: affiliateData.id,
           referral_url: linkData.url,
           token: linkData.token,
           email,
-          first_name: firstName || "User",
-          last_name: lastName || "",
+          first_name: affiliateData.first_name || firstName || "User",
+          last_name: affiliateData.last_name || lastName || "",
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: "user_id",
-        }
-      )
-      .select()
-      .single();
+        })
+        .select()
+        .single();
+
+      newAffiliate = insertedAffiliate;
+      insertError = insertErr;
+    }
 
     if (insertError || !newAffiliate) {
       console.error("Error storing affiliate data:", insertError);
@@ -140,7 +256,7 @@ export default async function handler(
       affiliate_id: newAffiliate.rewardful_affiliate_id,
       referral_url: newAffiliate.referral_url,
       token: newAffiliate.token,
-      existing: false,
+      existing: isExistingAffiliate, // true if we used an existing affiliate
     });
   } catch (error) {
     console.error("Error creating affiliate:", error);
