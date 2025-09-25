@@ -95,17 +95,26 @@ export class RewardfulService {
   }
 
   /**
-   * Generate affiliate signup URL
+   * Generate affiliate signup URL for the Rewardful affiliate portal
    * @returns Affiliate signup URL
    */
   static getAffiliateSignupUrl(): string {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://app.casae.com";
     const apiKey = process.env.NEXT_PUBLIC_REWARDFUL_API_KEY;
     return `https://${apiKey}.rewardful.com/affiliates/signup`;
   }
 
   /**
+   * Get the Rewardful affiliate dashboard URL for existing affiliates
+   * @returns Affiliate dashboard URL
+   */
+  static getAffiliateDashboardUrl(): string {
+    const apiKey = process.env.NEXT_PUBLIC_REWARDFUL_API_KEY;
+    return `https://${apiKey}.rewardful.com/affiliates/dashboard`;
+  }
+
+  /**
    * Create an affiliate for the current user and get their referral link
+   * This now uses the Rewardful API to create real affiliates
    * @param userId User ID
    * @param userEmail User's email
    * @param firstName User's first name
@@ -117,7 +126,7 @@ export class RewardfulService {
     userEmail: string,
     firstName?: string,
     lastName?: string
-  ): Promise<{ affiliateId: string; referralUrl: string } | null> {
+  ): Promise<{ affiliateId: string; referralUrl: string; token: string } | null> {
     try {
       const response = await fetch("/api/create-affiliate", {
         method: "POST",
@@ -133,13 +142,15 @@ export class RewardfulService {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create affiliate");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create affiliate");
       }
 
       const data = await response.json();
       return {
         affiliateId: data.affiliate_id,
         referralUrl: data.referral_url,
+        token: data.token,
       };
     } catch (error) {
       console.error("Error creating affiliate:", error);
@@ -150,9 +161,13 @@ export class RewardfulService {
   /**
    * Get user's existing affiliate link
    * @param userId User ID
-   * @returns Promise resolving to referral link or null
+   * @returns Promise resolving to affiliate data or null
    */
-  static async getUserReferralLink(userId: string): Promise<string | null> {
+  static async getUserReferralLink(userId: string): Promise<{
+    affiliateId: string;
+    referralUrl: string;
+    token: string;
+  } | null> {
     try {
       const response = await fetch(`/api/get-affiliate-link?userId=${userId}`);
 
@@ -161,7 +176,14 @@ export class RewardfulService {
       }
 
       const data = await response.json();
-      return data.referral_url || null;
+      if (data.affiliate_id && data.referral_url && data.token) {
+        return {
+          affiliateId: data.affiliate_id,
+          referralUrl: data.referral_url,
+          token: data.token,
+        };
+      }
+      return null;
     } catch (error) {
       console.error("Error getting user referral link:", error);
       return null;
@@ -186,6 +208,60 @@ export class RewardfulService {
       }
     });
   }
+
+  /**
+   * Track a lead (someone who visited via referral link)
+   * @param email Lead's email address
+   * @param metadata Optional additional data
+   */
+  static trackLead(email: string, metadata?: any): void {
+    if (typeof window === "undefined") return;
+
+    try {
+      if (window.rewardful) {
+        const leadData: any = { email };
+        if (metadata) Object.assign(leadData, metadata);
+        
+        window.rewardful("lead", leadData);
+        console.log("Rewardful lead tracked:", { email, metadata });
+      }
+    } catch (error) {
+      console.error("Error tracking Rewardful lead:", error);
+    }
+  }
+}
+
+/**
+ * Interface for Rewardful affiliate data returned by the API
+ */
+export interface RewardfulAffiliateData {
+  affiliateId: string;
+  referralUrl: string;
+  token: string;
+}
+
+/**
+ * Interface for Rewardful API affiliate response
+ */
+export interface RewardfulAPIAffiliate {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  state: string;
+  visitors: number;
+  leads: number;
+  conversions: number;
+  links: Array<{
+    id: string;
+    url: string;
+    token: string;
+    visitors: number;
+    leads: number;
+    conversions: number;
+  }>;
 }
 
 export default RewardfulService;
