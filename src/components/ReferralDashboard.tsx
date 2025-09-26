@@ -218,44 +218,6 @@ export default function ReferralDashboard() {
             )}
           </div>
         )}
-
-        <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-          <h4 className="text-white font-semibold mb-3">Affiliate Dashboard</h4>
-          <p className="text-white/70 text-sm mb-4">
-            Track your referral performance, earnings, and detailed analytics.
-          </p>
-          <a
-            href={RewardfulService.getAffiliateDashboardUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white font-medium px-4 py-2 rounded-xl transition-all duration-300"
-          >
-            View Dashboard
-            <svg
-              className="ml-2 w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-              />
-            </svg>
-          </a>
-        </div>
-
-        <div className="bg-white/5 rounded-2xl p-6 border border-white/10">
-          <h4 className="text-white font-semibold mb-3">How it works:</h4>
-          <ul className="text-white/70 text-sm space-y-2">
-            <li>• Share your referral link with friends</li>
-            <li>• They sign up using your link</li>
-            <li>• You both get rewards when they subscribe</li>
-            <li>• Track your progress in the affiliate dashboard</li>
-          </ul>
-        </div>
       </div>
     </div>
   );
