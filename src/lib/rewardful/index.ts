@@ -1,8 +1,16 @@
 declare global {
   interface Window {
-    rewardful?: (action: string, data?: any) => void;
+    rewardful?: (action: string, data?: any, callback?: (data: any) => void) => void;
     Rewardful?: {
       referral?: string;
+      affiliate?: {
+        id: string;
+        name: string;
+        first_name: string;
+        last_name: string;
+        token: string;
+      };
+      _cookie?: any;
     };
   }
 }
@@ -51,13 +59,17 @@ export class RewardfulService {
 
   /**
    * Get current referral ID if user was referred
+   * IMPORTANT: This should only be called inside the ready callback
    * @returns Referral ID or null
    */
   static getReferralId(): string | null {
     if (typeof window === "undefined") return null;
 
     try {
-      return window.Rewardful?.referral || null;
+      // Access the referral ID from the global Rewardful object
+      const referralId = window.Rewardful?.referral || null;
+      console.log("Getting referral ID:", referralId);
+      return referralId;
     } catch (error) {
       console.error("Error getting referral ID:", error);
       return null;
@@ -74,23 +86,33 @@ export class RewardfulService {
 
   /**
    * Execute code when Rewardful is ready
+   * Uses the official ready callback
    * @param callback Function to execute when ready
    */
   static executeWhenReady(callback: () => void): void {
     if (typeof window === "undefined") return;
 
-    if (window.rewardful) {
-      callback();
-    } else {
-      // Wait for Rewardful to load
-      const checkRewardful = () => {
-        if (window.rewardful) {
+    try {
+      if (window.rewardful) {
+        // Use the official ready callback
+        window.rewardful("ready", function() {
           callback();
-        } else {
-          setTimeout(checkRewardful, 100);
-        }
-      };
-      checkRewardful();
+        });
+      } else {
+        // Fallback: wait for rewardful to be defined
+        const checkRewardful = () => {
+          if (window.rewardful) {
+            window.rewardful("ready", function() {
+              callback();
+            });
+          } else {
+            setTimeout(checkRewardful, 100);
+          }
+        };
+        checkRewardful();
+      }
+    } catch (error) {
+      console.error("Error executing Rewardful ready callback:", error);
     }
   }
 
@@ -227,6 +249,70 @@ export class RewardfulService {
       }
     } catch (error) {
       console.error("Error tracking Rewardful lead:", error);
+    }
+  }
+
+  /**
+   * Debug: Get the Rewardful cookie data
+   * FOR DEBUGGING ONLY - not for production use
+   */
+  static getCookieDebug(): any {
+    if (typeof window === "undefined") return null;
+    return window.Rewardful?._cookie || null;
+  }
+
+  /**
+   * Save referral ID to database for persistence
+   * @param userId User's ID
+   * @param referralId Rewardful referral ID
+   * @returns Promise resolving to success boolean
+   */
+  static async saveReferralToDatabase(
+    userId: string,
+    referralId: string
+  ): Promise<boolean> {
+    try {
+      const response = await fetch("/api/save-referral", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId, referralId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save referral ID");
+      }
+
+      console.log("Referral ID saved to database:", referralId);
+      return true;
+    } catch (error) {
+      console.error("Error saving referral ID to database:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Get referral ID from database
+   * @param userId User's ID
+   * @returns Promise resolving to referral ID or null
+   */
+  static async getReferralFromDatabase(
+    userId: string
+  ): Promise<string | null> {
+    try {
+      const response = await fetch(`/api/get-referral?userId=${userId}`);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const data = await response.json();
+      return data.referralId || null;
+    } catch (error) {
+      console.error("Error getting referral ID from database:", error);
+      return null;
     }
   }
 }

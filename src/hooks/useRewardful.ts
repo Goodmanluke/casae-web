@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import RewardfulService from "../lib/rewardful";
+import { RewardfulService } from "../lib/rewardful";
 
 /**
  * Custom hook for Rewardful integration

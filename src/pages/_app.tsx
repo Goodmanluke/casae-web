@@ -85,7 +85,6 @@ export default function App({ Component, pageProps }: AppProps) {
       <Script
         src="https://r.wdfl.co/rw.js"
         data-rewardful={process.env.NEXT_PUBLIC_REWARDFUL_API_KEY}
-        strategy="beforeInteractive"
       />
 
       {pageLoading && (

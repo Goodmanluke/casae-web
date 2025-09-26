@@ -4,7 +4,7 @@ import { supabase } from "../lib/supabase";
 import Navigation from "../components/Navigation";
 import Notification from "../components/Notification";
 import { useSubscription } from "../hooks/useSubscription";
-import { useRewardful } from "../hooks/useRewardful";
+import { useUserReferralId } from "../hooks/useUserReferralId";
 
 const PlansPage = () => {
   const router = useRouter();
@@ -17,7 +17,7 @@ const PlansPage = () => {
     type: "success" | "error" | "info" | "warning";
   } | null>(null);
 
-  const { isReferred, referralId } = useRewardful();
+  const { referralId, loading: referralLoading } = useUserReferralId();
 
   const {
     subscription,
@@ -117,6 +117,13 @@ const PlansPage = () => {
 
     fetchPlanData();
   }, []);
+  useEffect(() => {
+    if (!referralLoading && referralId) {
+      console.log("✅ Referral ID from database:", referralId);
+    } else if (!referralLoading && !referralId) {
+      console.log("ℹ️ No referral ID found for this user (not referred)");
+    }
+  }, [referralId, referralLoading]);
 
   const handleSubscribe = async (planId: string) => {
     if (isPremium || (isPro && planId.includes("pro"))) {
@@ -135,8 +142,6 @@ const PlansPage = () => {
         return;
       }
 
-      const currentReferralId = referralId;
-
       const checkoutData: any = {
         userId: session.user.id,
         planId: planId,
@@ -144,8 +149,11 @@ const PlansPage = () => {
         cancelUrl: `${window.location.origin}/plans?canceled=true`,
       };
 
-      if (currentReferralId) {
-        checkoutData.referralId = currentReferralId;
+      if (referralId) {
+        checkoutData.referralId = referralId;
+        console.log("✅ Sending referral ID to checkout:", referralId);
+      } else {
+        console.log("ℹ️ No referral ID to send (user not referred)");
       }
 
       const response = await fetch("/api/create-checkout-session", {
