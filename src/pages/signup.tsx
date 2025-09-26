@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabase";
 import { logoSrc } from "../lib/logo";
 import { useRewardful } from "../hooks/useRewardful";
+import { RewardfulService } from "../lib/rewardful";
 
 export default function Signup() {
   const router = useRouter();
@@ -11,13 +12,23 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { trackConversion, isReferred, referralId } = useRewardful();
+  const { trackConversion, isReferred, referralId, isLoaded } = useRewardful();
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (isReferred && referralId) {
       setMessage("You were referred to CMAi! Sign up to get started.");
     }
   }, [isReferred, referralId]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      console.log("Rewardful loaded:", {
+        isReferred,
+        referralId,
+      });
+    }
+  }, [isLoaded, isReferred, referralId]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +43,17 @@ export default function Signup() {
     }
 
     try {
+      let finalReferralId = referralId;
+
+      if (formRef.current) {
+        const hiddenInput = formRef.current.querySelector<HTMLInputElement>(
+          'input[name="referral"]'
+        );
+        if (hiddenInput && hiddenInput.value) {
+          finalReferralId = hiddenInput.value;
+        }
+      }
+
       const siteUrl =
         process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
 
@@ -44,17 +66,41 @@ export default function Signup() {
         },
       };
 
-      if (referralId) {
-        signupData.options.data.referral_id = referralId;
+      // Add referral data to user metadata
+      if (finalReferralId) {
+        signupData.options.data.referral_id = finalReferralId;
         signupData.options.data.referred = true;
+        console.log("Signing up with referral ID:", finalReferralId);
+      } else {
+        console.log("No referral ID found during signup");
       }
 
-      const { error } = await supabase.auth.signUp(signupData);
+      const { data: signupResult, error: signupError } =
+        await supabase.auth.signUp(signupData);
 
-      if (error) {
-        setError(error.message);
+      if (signupError) {
+        setError(signupError.message);
       } else {
+        // Track the conversion with Rewardful
         trackConversion(email);
+
+        // Save referral ID to database if user was referred and we have a user ID
+        if (finalReferralId && signupResult.user?.id) {
+          console.log(
+            "Saving referral ID to database for user:",
+            signupResult.user.id
+          );
+          const saved = await RewardfulService.saveReferralToDatabase(
+            signupResult.user.id,
+            finalReferralId
+          );
+
+          if (saved) {
+            console.log("✅ Referral ID successfully saved to database");
+          } else {
+            console.warn("⚠️ Failed to save referral ID to database");
+          }
+        }
 
         setMessage("Check your email to confirm your account, then log in.");
         setTimeout(() => router.replace("/login"), 2500);
@@ -97,7 +143,13 @@ export default function Signup() {
               </div>
             )}
 
-            <form className="space-y-6" onSubmit={handleSignup} data-rewardful>
+            {/* The data-rewardful attribute tells Rewardful to automatically add the hidden referral input */}
+            <form
+              ref={formRef}
+              className="space-y-6"
+              onSubmit={handleSignup}
+              data-rewardful
+            >
               <div>
                 <label className="block text-white/80 font-medium mb-3 text-sm uppercase tracking-wide">
                   Email Address
@@ -124,10 +176,14 @@ export default function Signup() {
               </div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !isLoaded}
                 className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
               >
-                {loading ? "Creating..." : "Create Account"}
+                {loading
+                  ? "Creating..."
+                  : !isLoaded
+                  ? "Loading..."
+                  : "Create Account"}
               </button>
               <button
                 type="button"

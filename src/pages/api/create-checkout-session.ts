@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "../../lib/supabaseAdmin";
 
 // Check for required environment variables
 if (
@@ -12,11 +13,6 @@ if (
     "Missing required environment variables: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, or STRIPE_SECRET_KEY"
   );
 }
-
-// const supabase = createClient(
-//   process.env.NEXT_PUBLIC_SUPABASE_URL,
-//   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-// )
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -60,6 +56,37 @@ export default async function handler(
       return res.status(400).json({
         error: "Missing required fields: userId, planId, successUrl, cancelUrl",
       });
+    }
+
+    const { data: userData, error: userError } =
+      await supabase.auth.admin.getUserById(userId);
+
+    if (userError || !userData.user) {
+      console.error("Error fetching user:", userError);
+      return res.status(400).json({ error: "Invalid user ID" });
+    }
+
+    const userEmail = userData.user.email;
+
+    let finalReferralId = referralId;
+
+    if (!finalReferralId) {
+      try {
+        const { data: referralData } = await supabaseAdmin
+          .from("user_referrals")
+          .select("referral_id")
+          .eq("user_id", userId)
+          .single();
+
+        if (referralData?.referral_id) {
+          finalReferralId = referralData.referral_id;
+          console.log("Retrieved referral ID from database:", finalReferralId);
+        }
+      } catch (err) {
+        console.log(
+          "No referral ID found for user (this is okay for non-referred users)"
+        );
+      }
     }
 
     let stripePriceId = null;
@@ -119,13 +146,47 @@ export default async function handler(
         .json({ error: "Stripe price ID not configured for this plan" });
     }
 
-    const metadata: any = {
+    const customerMetadata: any = {
+      supabase_user_id: userId,
+    };
+    if (finalReferralId) {
+      customerMetadata.referral = finalReferralId;
+      console.log("Adding referral to Stripe customer:", finalReferralId);
+    }
+
+    // Prepare session metadata
+    const sessionMetadata: any = {
       userId,
       planId: subscriptionId || "",
     };
 
-    if (referralId) {
-      metadata.referral_id = referralId;
+    if (finalReferralId) {
+      sessionMetadata.referral_id = finalReferralId;
+    }
+
+    let customerId: string | undefined;
+
+    const existingCustomers = await stripe.customers.list({
+      email: userEmail,
+      limit: 1,
+    });
+
+    if (existingCustomers.data.length > 0) {
+      customerId = existingCustomers.data[0].id;
+
+      if (finalReferralId && !existingCustomers.data[0].metadata.referral) {
+        await stripe.customers.update(customerId, {
+          metadata: customerMetadata,
+        });
+        console.log("Updated existing customer with referral metadata");
+      }
+    } else {
+      const customer = await stripe.customers.create({
+        email: userEmail,
+        metadata: customerMetadata,
+      });
+      customerId = customer.id;
+      console.log("Created new Stripe customer with referral metadata");
     }
 
     // Create Stripe checkout session
@@ -141,7 +202,8 @@ export default async function handler(
       success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
       client_reference_id: userId,
-      metadata,
+      customer: customerId,
+      metadata: sessionMetadata,
     });
 
     res.status(200).json({ sessionId: session.id, url: session.url });
