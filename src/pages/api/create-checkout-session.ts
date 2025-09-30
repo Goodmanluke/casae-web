@@ -204,6 +204,7 @@ export default async function handler(
       client_reference_id: userId,
       customer: customerId,
       metadata: sessionMetadata,
+      allow_promotion_codes: true,
     });
 
     res.status(200).json({ sessionId: session.id, url: session.url });
