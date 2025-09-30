@@ -12,6 +12,7 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const { trackConversion, isReferred, referralId, isLoaded } = useRewardful();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -38,6 +39,12 @@ export default function Signup() {
 
     if (!email || !password) {
       setError("Please enter both email and password.");
+      setLoading(false);
+      return;
+    }
+
+    if (!agreedToTerms) {
+      setError("Please agree to the Terms of Service to continue.");
       setLoading(false);
       return;
     }
@@ -174,10 +181,34 @@ export default function Signup() {
                   className="w-full bg-white/20 backdrop-blur-sm border border-white/30 text-white placeholder-white/50 px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-300"
                 />
               </div>
+              
+              {/* Terms of Service Checkbox */}
+              <div className="flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-white/30 bg-white/20 text-cyan-500 focus:ring-2 focus:ring-cyan-400 cursor-pointer"
+                />
+                <label htmlFor="terms" className="text-white/80 text-sm leading-relaxed cursor-pointer">
+                  I agree to the{" "}
+                  <a
+                    href="/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-cyan-400 hover:text-cyan-300 underline transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Terms of Service
+                  </a>
+                </label>
+              </div>
+
               <button
                 type="submit"
-                disabled={loading || !isLoaded}
-                className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50"
+                disabled={loading || !isLoaded || !agreedToTerms}
+                className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading
                   ? "Creating..."
