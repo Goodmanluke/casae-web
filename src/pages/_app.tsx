@@ -20,7 +20,7 @@ export default function App({ Component, pageProps }: AppProps) {
     if (!router.isReady) return;
 
     const protect = async () => {
-      const publicRoutes = ["/", "/login", "/signup"];
+      const publicRoutes = ["/", "/login", "/signup", "/terms"];
       if (publicRoutes.includes(router.pathname)) {
         setCheckingAuth(false);
         return;
