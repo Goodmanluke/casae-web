@@ -181,7 +181,7 @@ export default function Signup() {
                   className="w-full bg-white/20 backdrop-blur-sm border border-white/30 text-white placeholder-white/50 px-6 py-4 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-300"
                 />
               </div>
-              
+
               {/* Terms of Service Checkbox */}
               <div className="flex items-start space-x-3">
                 <input
@@ -191,7 +191,10 @@ export default function Signup() {
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
                   className="mt-1 w-5 h-5 rounded border-white/30 bg-white/20 text-cyan-500 focus:ring-2 focus:ring-cyan-400 cursor-pointer"
                 />
-                <label htmlFor="terms" className="text-white/80 text-sm leading-relaxed cursor-pointer">
+                <label
+                  htmlFor="terms"
+                  className="text-white/80 text-sm leading-relaxed cursor-pointer"
+                >
                   I agree to the{" "}
                   <a
                     href="/terms"
@@ -200,7 +203,7 @@ export default function Signup() {
                     className="text-cyan-400 hover:text-cyan-300 underline transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    Terms of Service
+                    CMAi Legal Policies
                   </a>
                 </label>
               </div>
